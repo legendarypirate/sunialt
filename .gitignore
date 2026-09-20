@@ -1,0 +1,16 @@
+.DS_Store
+node_modules/
+.next/
+dist/
+build/
+*.log
+coverage/
+
+.env
+.env.local
+.env.*.local
+back/.env
+admin/.env.local
+
+!back/.env.example
+!admin/.env.local.example
