@@ -24,7 +24,7 @@ cp .env.example .env
 
 npm install
 npm run db:seed   # Creates admin, mobile catalog, demo users
-npm run dev       # http://localhost:4000
+npm run dev       # http://localhost:3071
 ```
 
 Default admin credentials (change in `.env`):
@@ -42,7 +42,7 @@ cd admin
 cp .env.local.example .env.local
 
 npm install
-npm run dev       # http://localhost:3000
+npm run dev       # http://localhost:3070
 ```
 
 ## Database Models

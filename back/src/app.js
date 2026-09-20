@@ -24,7 +24,7 @@ app.use(cors({
       return callback(null, true);
     }
     const allowed = [
-      process.env.ADMIN_URL || 'http://localhost:3000',
+      process.env.ADMIN_URL || 'http://localhost:3070',
     ];
     callback(null, allowed.includes(origin));
   },

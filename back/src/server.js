@@ -3,7 +3,7 @@ const app = require('./app');
 const { sequelize } = require('./models');
 const { ensureAdmin } = require('./scripts/ensureAdmin');
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 3071;
 
 async function start() {
   try {
