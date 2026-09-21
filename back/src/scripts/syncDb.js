@@ -1,11 +1,13 @@
 require('dotenv').config();
 const { sequelize } = require('../models');
 const { migrate: migrateExerciseIntro } = require('./migrateExerciseIntro');
+const { migrate: migrateProductImages } = require('./migrateProductImages');
 
 async function sync() {
   try {
     await sequelize.authenticate();
     await migrateExerciseIntro();
+    await migrateProductImages();
     await sequelize.sync({ alter: true });
     console.log('Database synced');
     process.exit(0);

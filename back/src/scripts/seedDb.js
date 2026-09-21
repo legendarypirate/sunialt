@@ -12,11 +12,13 @@ const {
   Setting,
 } = require('../models');
 const { migrate: migrateExerciseIntro } = require('./migrateExerciseIntro');
+const { migrate: migrateProductImages } = require('./migrateProductImages');
 
 async function seed() {
   try {
     await sequelize.authenticate();
     await migrateExerciseIntro();
+    await migrateProductImages();
     await sequelize.sync({ alter: true });
 
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@sunia.mn';

@@ -3,6 +3,7 @@ const app = require('./app');
 const { sequelize } = require('./models');
 const { ensureAdmin } = require('./scripts/ensureAdmin');
 const { migrate: migrateExerciseIntro } = require('./scripts/migrateExerciseIntro');
+const { migrate: migrateProductImages } = require('./scripts/migrateProductImages');
 
 const PORT = process.env.PORT || 3071;
 
@@ -12,6 +13,7 @@ async function start() {
     console.log('Database connected (sunialt)');
 
     await migrateExerciseIntro();
+    await migrateProductImages();
     await sequelize.sync({ alter: process.env.NODE_ENV === 'development' });
     console.log('Database synced');
 

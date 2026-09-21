@@ -1,6 +1,7 @@
 const express = require('express');
 const { Product } = require('../models');
 const { authenticateAdmin } = require('../middleware/auth');
+const { normalizeProductImages, withProductImages } = require('../utils/productImages');
 
 const router = express.Router();
 router.use(authenticateAdmin);
@@ -8,7 +9,7 @@ router.use(authenticateAdmin);
 router.get('/', async (_req, res) => {
   try {
     const products = await Product.findAll({ order: [['sortOrder', 'ASC'], ['createdAt', 'DESC']] });
-    res.json({ products });
+    res.json({ products: products.map(withProductImages) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -16,8 +17,8 @@ router.get('/', async (_req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const product = await Product.create(req.body);
-    res.status(201).json({ product });
+    const product = await Product.create(normalizeProductImages(req.body));
+    res.status(201).json({ product: withProductImages(product) });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -27,7 +28,7 @@ router.get('/:id', async (req, res) => {
   try {
     const product = await Product.findByPk(req.params.id);
     if (!product) return res.status(404).json({ error: 'Product not found' });
-    res.json({ product });
+    res.json({ product: withProductImages(product) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -37,8 +38,8 @@ router.put('/:id', async (req, res) => {
   try {
     const product = await Product.findByPk(req.params.id);
     if (!product) return res.status(404).json({ error: 'Product not found' });
-    await product.update(req.body);
-    res.json({ product });
+    await product.update(normalizeProductImages(req.body));
+    res.json({ product: withProductImages(product) });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

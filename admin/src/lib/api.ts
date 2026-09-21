@@ -278,6 +278,7 @@ export interface Product {
   price: number | string;
   currency: string;
   imageUrl: string | null;
+  imageUrls?: string[];
   stock: number;
   isPublished: boolean;
   sortOrder: number;

@@ -40,6 +40,11 @@ const Product = sequelize.define('Product', {
     allowNull: true,
     field: 'image_url',
   },
+  imageUrls: {
+    type: DataTypes.ARRAY(DataTypes.STRING),
+    defaultValue: [],
+    field: 'image_urls',
+  },
   stock: {
     type: DataTypes.INTEGER,
     defaultValue: 0,

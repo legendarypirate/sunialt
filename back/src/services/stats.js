@@ -203,8 +203,10 @@ async function recordSession(models, user, payload) {
   return session;
 }
 
+const { withProductImages } = require('../utils/productImages');
+
 function formatProduct(product) {
-  const json = product.toJSON ? product.toJSON() : product;
+  const json = withProductImages(product);
   const price = Number(json.price);
   return {
     ...json,

@@ -130,6 +130,10 @@ export const mn = {
   rating: 'Үнэлгээ',
   reviews: 'Сэтгэгдэл',
   deleteProduct: 'Энэ бүтээгдэхүүнийг устгах уу?',
+  productImages: 'Бүтээгдэхүүний зураг',
+  addImage: 'Зураг нэмэх',
+  removeImage: 'Зураг устгах',
+  coverImageHint: 'Эхний зураг нь үндсэн зураг болно.',
 
   addBadge: 'Тэмдэгт нэмэх',
   editBadge: 'Тэмдэгт засах',
