@@ -27,6 +27,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { api, Exercise } from '@/lib/api';
+import { adminDrawerWidthClass } from '@/lib/layout';
 import { mn } from '@/lib/mn';
 
 const emptyForm = {
@@ -150,7 +151,7 @@ export default function ExercisesPage() {
       </div>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" className="flex h-full w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+        <SheetContent side="right" className={`flex h-full w-full flex-col gap-0 overflow-hidden p-0 ${adminDrawerWidthClass}`}>
           <SheetHeader className="border-b px-6 py-4">
             <SheetTitle>{editing ? mn.editExercise : mn.newExercise}</SheetTitle>
           </SheetHeader>

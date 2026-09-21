@@ -27,6 +27,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { api, Product } from '@/lib/api';
+import { adminDrawerWidthClass } from '@/lib/layout';
 import { mn } from '@/lib/mn';
 
 type ProductForm = {
@@ -152,7 +153,7 @@ export default function ProductsPage() {
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
           side="right"
-          className="flex h-full w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+          className={`flex h-full w-full flex-col gap-0 overflow-hidden p-0 ${adminDrawerWidthClass}`}
         >
           <SheetHeader className="border-b px-6 py-4">
             <SheetTitle>{editing ? mn.editProduct : mn.newProduct}</SheetTitle>
