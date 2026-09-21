@@ -297,6 +297,8 @@ export interface Challenge {
   durationDays: number;
   weeklyGoalDays: number;
   timeLimitSeconds?: number | null;
+  imageUrl?: string | null;
+  rewardText?: string | null;
   startDate: string | null;
   endDate: string | null;
   isActive: boolean;

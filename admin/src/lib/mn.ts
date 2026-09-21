@@ -129,6 +129,9 @@ export const mn = {
   weeklyGoalDays: 'Долоо хоногийн зорилт (хоног)',
   timeLimit: 'Хугацааны хязгаар (сек)',
   deleteChallenge: 'Энэ челленжийг устгах уу?',
+  challengeImage: 'Челленжийн зураг',
+  challengeImageHint: 'Апп дээрх hero card болон дэлгэрэнгүй дээр харагдана.',
+  rewardText: 'Шагналын текст',
   daysPerWeek: 'хоног/7 хоног',
 
   addProduct: 'Бүтээгдэхүүн нэмэх',
