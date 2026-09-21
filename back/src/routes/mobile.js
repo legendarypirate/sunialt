@@ -17,6 +17,7 @@ const { recordSession, formatProduct, startOfDay, applyFreshCounters, dayKey } =
 const { getQpayPublic } = require('../services/settings');
 const { createQpayInvoice, checkQpayPayment } = require('../services/qpay');
 const { verifyGoogleIdToken, isGoogleAuthConfigured } = require('../utils/googleAuth');
+const { withExerciseImages } = require('../utils/exerciseImages');
 
 const router = express.Router();
 
@@ -104,7 +105,7 @@ async function catalogPayload(currentUser) {
   ]);
 
   return {
-    exercises,
+    exercises: exercises.map(withExerciseImages),
     products: products.map(formatProduct),
     challenges,
     badges,

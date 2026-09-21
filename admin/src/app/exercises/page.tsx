@@ -38,7 +38,8 @@ const emptyForm = {
   muscles: '',
   primaryMuscles: '',
   secondaryMuscles: '',
-  imageUrl: '',
+  profileImageUrl: '',
+  coverImageUrl: '',
   videoUrl: '',
   muscleImageUrl: '',
   whyPoints: '',
@@ -93,7 +94,8 @@ export default function ExercisesPage() {
       muscles: (exercise.muscles || []).join(', '),
       primaryMuscles: exercise.primaryMuscles || '',
       secondaryMuscles: exercise.secondaryMuscles || '',
-      imageUrl: exercise.imageUrl || '',
+      profileImageUrl: exercise.profileImageUrl || exercise.imageUrl || '',
+      coverImageUrl: exercise.coverImageUrl || exercise.imageUrl || '',
       videoUrl: exercise.videoUrl || '',
       muscleImageUrl: exercise.muscleImageUrl || '',
       whyPoints: lines(exercise.whyPoints),
@@ -119,7 +121,9 @@ export default function ExercisesPage() {
         whyPoints: splitLines(form.whyPoints),
         howPoints: splitLines(form.howPoints),
         mistakes: splitLines(form.mistakes),
-        imageUrl: form.imageUrl || null,
+        profileImageUrl: form.profileImageUrl || null,
+        coverImageUrl: form.coverImageUrl || null,
+        imageUrl: form.coverImageUrl || form.profileImageUrl || null,
         videoUrl: form.videoUrl || null,
         muscleImageUrl: form.muscleImageUrl || null,
         targetReps: Number(form.targetReps),
@@ -159,10 +163,20 @@ export default function ExercisesPage() {
           <div className="flex-1 overflow-y-auto px-6 py-4">
             <div className="grid gap-4">
               <ImageUploadField
-                label={mn.imageUrl}
-                value={form.imageUrl}
-                onChange={(imageUrl) => setForm({ ...form, imageUrl })}
-                folder="sunialt/exercises"
+                label={mn.exerciseProfileImage}
+                hint={mn.exerciseProfileImageHint}
+                value={form.profileImageUrl}
+                onChange={(profileImageUrl) => setForm({ ...form, profileImageUrl })}
+                folder="sunialt/exercises/profile"
+                showUrlInput={false}
+              />
+              <ImageUploadField
+                label={mn.exerciseCoverImage}
+                hint={mn.exerciseCoverImageHint}
+                value={form.coverImageUrl}
+                onChange={(coverImageUrl) => setForm({ ...form, coverImageUrl })}
+                folder="sunialt/exercises/cover"
+                showUrlInput={false}
               />
               <div className="space-y-2">
                 <Label>{mn.title}</Label>
@@ -274,10 +288,10 @@ export default function ExercisesPage() {
               <TableRow key={exercise.id}>
                 <TableCell className="whitespace-normal align-top">
                   <div className="flex min-w-0 items-start gap-3">
-                    {exercise.imageUrl ? (
+                    {(exercise.profileImageUrl || exercise.coverImageUrl || exercise.imageUrl) ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={exercise.imageUrl}
+                        src={exercise.profileImageUrl || exercise.coverImageUrl || exercise.imageUrl || ''}
                         alt=""
                         className="h-10 w-10 shrink-0 rounded-md object-cover"
                       />

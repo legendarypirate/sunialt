@@ -14,9 +14,18 @@ type ImageUploadFieldProps = {
   value: string;
   onChange: (url: string) => void;
   folder?: string;
+  hint?: string;
+  showUrlInput?: boolean;
 };
 
-export function ImageUploadField({ label, value, onChange, folder }: ImageUploadFieldProps) {
+export function ImageUploadField({
+  label,
+  value,
+  onChange,
+  folder,
+  hint,
+  showUrlInput = true,
+}: ImageUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -35,7 +44,10 @@ export function ImageUploadField({ label, value, onChange, folder }: ImageUpload
 
   return (
     <div className="space-y-2">
-      <Label>{label}</Label>
+      <div>
+        <Label>{label}</Label>
+        {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+      </div>
       {value ? (
         <div className="relative overflow-hidden rounded-lg border bg-muted/40">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -71,11 +83,13 @@ export function ImageUploadField({ label, value, onChange, folder }: ImageUpload
           <span className="text-sm">{uploading ? mn.uploading : mn.uploadImage}</span>
         </button>
       )}
-      <Input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="https://..."
-      />
+      {showUrlInput ? (
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="https://..."
+        />
+      ) : null}
       <input
         ref={inputRef}
         type="file"

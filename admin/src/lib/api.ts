@@ -264,6 +264,8 @@ export interface Exercise {
   secondaryMuscles?: string | null;
   targetReps: number;
   imageUrl: string | null;
+  profileImageUrl?: string | null;
+  coverImageUrl?: string | null;
   videoUrl?: string | null;
   videoLabel?: string | null;
   muscleImageUrl?: string | null;

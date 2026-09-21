@@ -34,6 +34,16 @@ const Exercise = sequelize.define('Exercise', {
     allowNull: true,
     field: 'image_url',
   },
+  profileImageUrl: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'profile_image_url',
+  },
+  coverImageUrl: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'cover_image_url',
+  },
   videoUrl: {
     type: DataTypes.STRING,
     allowNull: true,
