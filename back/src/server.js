@@ -2,6 +2,7 @@ require('dotenv').config();
 const app = require('./app');
 const { sequelize } = require('./models');
 const { ensureAdmin } = require('./scripts/ensureAdmin');
+const { migrate: migrateExerciseIntro } = require('./scripts/migrateExerciseIntro');
 
 const PORT = process.env.PORT || 3071;
 
@@ -10,6 +11,7 @@ async function start() {
     await sequelize.authenticate();
     console.log('Database connected (sunialt)');
 
+    await migrateExerciseIntro();
     await sequelize.sync({ alter: process.env.NODE_ENV === 'development' });
     console.log('Database synced');
 

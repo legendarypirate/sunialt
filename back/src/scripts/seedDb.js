@@ -11,10 +11,12 @@ const {
   WorkoutSession,
   Setting,
 } = require('../models');
+const { migrate: migrateExerciseIntro } = require('./migrateExerciseIntro');
 
 async function seed() {
   try {
     await sequelize.authenticate();
+    await migrateExerciseIntro();
     await sequelize.sync({ alter: true });
 
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@sunia.mn';
