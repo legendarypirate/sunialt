@@ -44,7 +44,21 @@ function userPayload(user) {
     googleId: json.googleId || null,
     authProvider: json.googleId ? 'google' : 'email',
     lastWorkoutAt: json.lastWorkoutAt || null,
+    heightCm: json.heightCm ?? 175,
+    weightKg: json.weightKg ?? 72,
+    age: json.age ?? 24,
+    fitnessLevel: json.fitnessLevel || 'Дунд шат',
+    goalWeightKg: json.goalWeightKg ?? 70,
   };
+}
+
+const FITNESS_LEVELS = ['Анхан шат', 'Дунд шат', 'Ахисан шат'];
+
+function clampInt(value, min, max) {
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n)) return null;
+  if (n < min || n > max) return null;
+  return n;
 }
 
 async function upsertGoogleUser(payload) {
@@ -271,6 +285,33 @@ router.patch('/me', authenticateUser, async (req, res) => {
         return res.status(400).json({ error: 'Invalid daily goal' });
       }
       req.user.dailyGoalReps = goal;
+    }
+    if (req.body.heightCm !== undefined) {
+      const height = clampInt(req.body.heightCm, 100, 250);
+      if (height == null) return res.status(400).json({ error: 'Invalid height' });
+      req.user.heightCm = height;
+    }
+    if (req.body.weightKg !== undefined) {
+      const weight = clampInt(req.body.weightKg, 30, 250);
+      if (weight == null) return res.status(400).json({ error: 'Invalid weight' });
+      req.user.weightKg = weight;
+    }
+    if (req.body.age !== undefined) {
+      const age = clampInt(req.body.age, 10, 120);
+      if (age == null) return res.status(400).json({ error: 'Invalid age' });
+      req.user.age = age;
+    }
+    if (req.body.fitnessLevel !== undefined) {
+      const level = String(req.body.fitnessLevel || '').trim();
+      if (!FITNESS_LEVELS.includes(level)) {
+        return res.status(400).json({ error: 'Invalid fitness level' });
+      }
+      req.user.fitnessLevel = level;
+    }
+    if (req.body.goalWeightKg !== undefined) {
+      const goal = clampInt(req.body.goalWeightKg, 30, 250);
+      if (goal == null) return res.status(400).json({ error: 'Invalid goal weight' });
+      req.user.goalWeightKg = goal;
     }
     await req.user.save();
     res.json({ user: userPayload(req.user) });

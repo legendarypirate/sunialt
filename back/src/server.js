@@ -5,6 +5,7 @@ const { ensureAdmin } = require('./scripts/ensureAdmin');
 const { migrate: migrateExerciseIntro } = require('./scripts/migrateExerciseIntro');
 const { migrate: migrateProductImages } = require('./scripts/migrateProductImages');
 const { migrate: migrateExerciseProfileCover } = require('./scripts/migrateExerciseProfileCover');
+const { migrate: migrateUserBodyProfile } = require('./scripts/migrateUserBodyProfile');
 
 const PORT = process.env.PORT || 3071;
 
@@ -16,6 +17,7 @@ async function start() {
     await migrateExerciseIntro();
     await migrateProductImages();
     await migrateExerciseProfileCover();
+    await migrateUserBodyProfile();
     await sequelize.sync({ alter: process.env.NODE_ENV === 'development' });
     console.log('Database synced');
 

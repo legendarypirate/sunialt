@@ -3,6 +3,7 @@ const { sequelize } = require('../models');
 const { migrate: migrateExerciseIntro } = require('./migrateExerciseIntro');
 const { migrate: migrateProductImages } = require('./migrateProductImages');
 const { migrate: migrateExerciseProfileCover } = require('./migrateExerciseProfileCover');
+const { migrate: migrateUserBodyProfile } = require('./migrateUserBodyProfile');
 
 async function sync() {
   try {
@@ -10,6 +11,7 @@ async function sync() {
     await migrateExerciseIntro();
     await migrateProductImages();
     await migrateExerciseProfileCover();
+    await migrateUserBodyProfile();
     await sequelize.sync({ alter: true });
     console.log('Database synced');
     process.exit(0);

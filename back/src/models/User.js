@@ -113,6 +113,30 @@ const User = sequelize.define('User', {
     allowNull: true,
     field: 'subscription_renews_at',
   },
+  heightCm: {
+    type: DataTypes.INTEGER,
+    defaultValue: 175,
+    field: 'height_cm',
+  },
+  weightKg: {
+    type: DataTypes.INTEGER,
+    defaultValue: 72,
+    field: 'weight_kg',
+  },
+  age: {
+    type: DataTypes.INTEGER,
+    defaultValue: 24,
+  },
+  fitnessLevel: {
+    type: DataTypes.STRING,
+    defaultValue: 'Дунд шат',
+    field: 'fitness_level',
+  },
+  goalWeightKg: {
+    type: DataTypes.INTEGER,
+    defaultValue: 70,
+    field: 'goal_weight_kg',
+  },
   isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true,
