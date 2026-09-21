@@ -4,16 +4,18 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAdminQuery } from '@/hooks/use-admin-query';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { AdminShell } from '@/components/admin-shell';
+import { ImageUploadField } from '@/components/image-upload-field';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -63,6 +65,7 @@ export default function ExercisesPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Exercise | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const { data } = useAdminQuery(() => api.getExercises(), [refreshKey]);
@@ -107,22 +110,29 @@ export default function ExercisesPage() {
   };
 
   const save = async () => {
-    const payload = {
-      ...form,
-      muscles: form.muscles.split(',').map((item) => item.trim()).filter(Boolean),
-      whyPoints: splitLines(form.whyPoints),
-      howPoints: splitLines(form.howPoints),
-      mistakes: splitLines(form.mistakes),
-      imageUrl: form.imageUrl || null,
-      videoUrl: form.videoUrl || null,
-      muscleImageUrl: form.muscleImageUrl || null,
-      targetReps: Number(form.targetReps),
-      sortOrder: Number(form.sortOrder),
-    };
-    if (editing) await api.updateExercise(editing.id, payload);
-    else await api.createExercise(payload);
-    setOpen(false);
-    load();
+    setSaving(true);
+    try {
+      const payload = {
+        ...form,
+        muscles: form.muscles.split(',').map((item) => item.trim()).filter(Boolean),
+        whyPoints: splitLines(form.whyPoints),
+        howPoints: splitLines(form.howPoints),
+        mistakes: splitLines(form.mistakes),
+        imageUrl: form.imageUrl || null,
+        videoUrl: form.videoUrl || null,
+        muscleImageUrl: form.muscleImageUrl || null,
+        targetReps: Number(form.targetReps),
+        sortOrder: Number(form.sortOrder),
+      };
+      if (editing) await api.updateExercise(editing.id, payload);
+      else await api.createExercise(payload);
+      setOpen(false);
+      load();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : mn.saveFailed);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const remove = async (id: string) => {
@@ -134,15 +144,25 @@ export default function ExercisesPage() {
   return (
     <AdminShell title={mn.exercises}>
       <div className="mb-4 flex justify-end">
-        <Dialog open={open} onOpenChange={setOpen}>
-          <Button onClick={() => { openCreate(); setOpen(true); }}>
-            <Plus className="mr-2 h-4 w-4" /> {mn.addExercise}
-          </Button>
-          <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{editing ? mn.editExercise : mn.newExercise}</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-2">
+        <Button onClick={openCreate}>
+          <Plus className="mr-2 h-4 w-4" /> {mn.addExercise}
+        </Button>
+      </div>
+
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent side="right" className="flex h-full w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+          <SheetHeader className="border-b px-6 py-4">
+            <SheetTitle>{editing ? mn.editExercise : mn.newExercise}</SheetTitle>
+          </SheetHeader>
+
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            <div className="grid gap-4">
+              <ImageUploadField
+                label={mn.imageUrl}
+                value={form.imageUrl}
+                onChange={(imageUrl) => setForm({ ...form, imageUrl })}
+                folder="sunialt/exercises"
+              />
               <div className="space-y-2">
                 <Label>{mn.title}</Label>
                 <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
@@ -166,17 +186,15 @@ export default function ExercisesPage() {
               <div className="rounded-lg border p-3 space-y-3">
                 <div className="font-medium">{mn.introSection}</div>
                 <div className="space-y-2">
-                  <Label>{mn.imageUrl}</Label>
-                  <Input value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} />
-                </div>
-                <div className="space-y-2">
                   <Label>{mn.videoUrl}</Label>
                   <Input value={form.videoUrl} onChange={(e) => setForm({ ...form, videoUrl: e.target.value })} />
                 </div>
-                <div className="space-y-2">
-                  <Label>{mn.muscleImageUrl}</Label>
-                  <Input value={form.muscleImageUrl} onChange={(e) => setForm({ ...form, muscleImageUrl: e.target.value })} />
-                </div>
+                <ImageUploadField
+                  label={mn.muscleImageUrl}
+                  value={form.muscleImageUrl}
+                  onChange={(muscleImageUrl) => setForm({ ...form, muscleImageUrl })}
+                  folder="sunialt/exercises/muscles"
+                />
                 <div className="space-y-2">
                   <Label>{mn.primaryMuscles}</Label>
                   <Input value={form.primaryMuscles} onChange={(e) => setForm({ ...form, primaryMuscles: e.target.value })} />
@@ -224,11 +242,16 @@ export default function ExercisesPage() {
                 <Switch checked={form.isPublished} onCheckedChange={(v) => setForm({ ...form, isPublished: v })} />
                 <Label>{mn.publish}</Label>
               </div>
-              <Button onClick={save}>{editing ? mn.update : mn.create}</Button>
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+          </div>
+
+          <SheetFooter className="border-t px-6 py-4">
+            <Button className="w-full" onClick={save} disabled={saving}>
+              {saving ? mn.saving : editing ? mn.update : mn.create}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       <div className="rounded-lg border">
         <Table>
@@ -249,8 +272,22 @@ export default function ExercisesPage() {
             ) : exercises.map((exercise) => (
               <TableRow key={exercise.id}>
                 <TableCell>
-                  <div className="font-medium">{exercise.title}</div>
-                  <div className="text-xs text-muted-foreground">{exercise.summary}</div>
+                  <div className="flex items-center gap-3">
+                    {exercise.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={exercise.imageUrl}
+                        alt=""
+                        className="h-10 w-10 rounded-md object-cover"
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded-md bg-muted" />
+                    )}
+                    <div>
+                      <div className="font-medium">{exercise.title}</div>
+                      <div className="text-xs text-muted-foreground">{exercise.summary}</div>
+                    </div>
+                  </div>
                 </TableCell>
                 <TableCell>{exercise.level}</TableCell>
                 <TableCell>{exercise.targetReps}</TableCell>

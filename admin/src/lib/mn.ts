@@ -27,6 +27,8 @@ export const mn = {
   qpayCallbackUrl: 'Callback URL',
   save: 'Хадгалах',
   saved: 'Хадгаллаа',
+  saving: 'Хадгалж байна...',
+  saveFailed: 'Хадгалахад алдаа гарлаа',
   phone: 'Утас',
   address: 'Хаяг',
   payment: 'Төлбөр',
@@ -96,6 +98,10 @@ export const mn = {
   videoUrl: 'Видео холбоос',
   imageUrl: 'Зургийн холбоос',
   muscleImageUrl: 'Булчингийн зураг',
+  uploadImage: 'Зураг оруулах',
+  changeImage: 'Зураг солих',
+  uploading: 'Байршуулж байна...',
+  uploadFailed: 'Зураг байршуулахад алдаа гарлаа',
   longDescription: 'Дэлгэрэнгүй тайлбар',
   primaryMuscles: 'Гол нөлөөлөх булчин',
   secondaryMuscles: 'Мөн ажиллах булчин',
@@ -179,6 +185,8 @@ export const challengeKindLabels: Record<string, string> = {
 export function translateApiError(message: string): string {
   if (message === 'Authentication required') return mn.authRequired;
   if (message === 'Invalid credentials') return mn.invalidCredentials;
+  if (message === 'Cloudinary is not configured') return 'Cloudinary тохиргоо хийгээгүй байна';
   if (message.startsWith('Request failed')) return mn.requestFailed;
+  if (message.startsWith('Upload failed')) return mn.uploadFailed;
   return message;
 }

@@ -44,6 +44,31 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return data as T;
 }
 
+async function uploadRequest<T>(path: string, file: File, folder?: string): Promise<T> {
+  const token = getToken();
+  const body = new FormData();
+  body.append('file', file);
+  if (folder) body.append('folder', folder);
+
+  const headers: HeadersInit = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${API_URL}${path}`, { method: 'POST', body, headers });
+  const data = await res.json().catch(() => ({}));
+
+  if (res.status === 401) {
+    clearToken();
+    throw new AuthError(translateApiError(data.error || 'Authentication required'));
+  }
+
+  if (!res.ok) {
+    throw new Error(translateApiError(data.error || `Upload failed (${res.status})`));
+  }
+  return data as T;
+}
+
 export const api = {
   login: (email: string, password: string) =>
     request<{ token: string; admin: Admin }>('/auth/login', {
@@ -137,6 +162,9 @@ export const api = {
 
   deleteExercise: (id: string) =>
     request<{ message: string }>(`/exercises/${id}`, { method: 'DELETE' }),
+
+  uploadImage: (file: File, folder = 'sunialt/exercises') =>
+    uploadRequest<{ url: string; publicId: string }>('/uploads/image', file, folder),
 
   getSessions: (page = 1) =>
     request<{ sessions: WorkoutSession[]; pagination: Pagination }>(`/sessions?page=${page}`),

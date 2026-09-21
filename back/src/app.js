@@ -15,6 +15,7 @@ const duelRoutes = require('./routes/duels');
 const orderRoutes = require('./routes/orders');
 const settingsRoutes = require('./routes/settings');
 const mobileRoutes = require('./routes/mobile');
+const uploadRoutes = require('./routes/uploads');
 
 const app = express();
 
@@ -50,6 +51,7 @@ app.use('/api/duels', duelRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/mobile', mobileRoutes);
+app.use('/api/uploads', uploadRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ error: 'Not found' });
