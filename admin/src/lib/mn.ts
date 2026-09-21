@@ -102,6 +102,7 @@ export const mn = {
   changeImage: 'Зураг солих',
   uploading: 'Байршуулж байна...',
   uploadFailed: 'Зураг байршуулахад алдаа гарлаа',
+  uploadTooLarge: 'Зураг хэт том байна. Жижиг зураг сонгоно уу.',
   longDescription: 'Дэлгэрэнгүй тайлбар',
   primaryMuscles: 'Гол нөлөөлөх булчин',
   secondaryMuscles: 'Мөн ажиллах булчин',
@@ -189,5 +190,6 @@ export function translateApiError(message: string): string {
   if (message === 'Cloudinary is not configured') return 'Cloudinary тохиргоо хийгээгүй байна';
   if (message.startsWith('Request failed')) return mn.requestFailed;
   if (message.startsWith('Upload failed')) return mn.uploadFailed;
+  if (message === 'Payload too large' || message.includes('too large')) return mn.uploadTooLarge;
   return message;
 }

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { api } from '@/lib/api';
+import { prepareImageForUpload } from '@/lib/image-upload-utils';
 import { mn } from '@/lib/mn';
 
 type ImageUploadFieldProps = {
@@ -22,7 +23,8 @@ export function ImageUploadField({ label, value, onChange, folder }: ImageUpload
   const uploadFile = async (file: File) => {
     setUploading(true);
     try {
-      const result = await api.uploadImage(file, folder);
+      const prepared = await prepareImageForUpload(file);
+      const result = await api.uploadImage(prepared, folder);
       onChange(result.url);
     } catch (error) {
       alert(error instanceof Error ? error.message : mn.uploadFailed);

@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { api } from '@/lib/api';
+import { prepareImageForUpload } from '@/lib/image-upload-utils';
 import { mn } from '@/lib/mn';
 
 type MultiImageUploadFieldProps = {
@@ -32,7 +33,8 @@ export function MultiImageUploadField({
     try {
       const uploaded: string[] = [];
       for (const file of list) {
-        const result = await api.uploadImage(file, folder);
+        const prepared = await prepareImageForUpload(file);
+        const result = await api.uploadImage(prepared, folder);
         uploaded.push(result.url);
       }
       onChange([...values, ...uploaded]);

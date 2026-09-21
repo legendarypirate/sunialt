@@ -63,6 +63,10 @@ async function uploadRequest<T>(path: string, file: File, folder?: string): Prom
     throw new AuthError(translateApiError(data.error || 'Authentication required'));
   }
 
+  if (res.status === 413) {
+    throw new Error(translateApiError(data.error || 'Payload too large'));
+  }
+
   if (!res.ok) {
     throw new Error(translateApiError(data.error || `Upload failed (${res.status})`));
   }
