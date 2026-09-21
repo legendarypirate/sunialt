@@ -2,7 +2,7 @@ const express = require('express');
 const { Op, fn, col, literal } = require('sequelize');
 const { WorkoutSession, User } = require('../models');
 const { authenticateAdmin } = require('../middleware/auth');
-const { dayKey } = require('../services/stats');
+const { startOfDay } = require('../services/stats');
 
 const router = express.Router();
 router.use(authenticateAdmin);
@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
   try {
     const period = req.query.period || 'daily';
     const now = new Date();
-    let start = new Date(`${dayKey(now)}T00:00:00.000Z`);
+    let start = startOfDay(now);
     if (period === 'weekly') {
       start = new Date(now);
       start.setDate(now.getDate() - 7);

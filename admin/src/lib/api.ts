@@ -226,9 +226,22 @@ export interface Exercise {
   title: string;
   level: string;
   summary: string | null;
+  description?: string | null;
   muscles: string[];
+  primaryMuscles?: string | null;
+  secondaryMuscles?: string | null;
   targetReps: number;
   imageUrl: string | null;
+  videoUrl?: string | null;
+  videoLabel?: string | null;
+  muscleImageUrl?: string | null;
+  whyPoints?: string[];
+  howPoints?: string[];
+  beginnerPlan?: string | null;
+  standardPlan?: string | null;
+  advancedPlan?: string | null;
+  restNote?: string | null;
+  mistakes?: string[];
   sortOrder: number;
   isPublished: boolean;
 }

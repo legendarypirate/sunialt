@@ -1,9 +1,60 @@
+const APP_TIME_ZONE = process.env.APP_TIME_ZONE || 'Asia/Ulaanbaatar';
+
+function zonedParts(date) {
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone: APP_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'short',
+  });
+  const parts = {};
+  for (const part of dtf.formatToParts(new Date(date))) {
+    if (part.type !== 'literal') parts[part.type] = part.value;
+  }
+  return {
+    year: Number(parts.year),
+    month: Number(parts.month),
+    day: Number(parts.day),
+    weekday: parts.weekday,
+  };
+}
+
 function dayKey(date) {
-  return new Date(date).toISOString().slice(0, 10);
+  const p = zonedParts(date);
+  return `${String(p.year).padStart(4, '0')}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
+}
+
+function zoneOffset(date) {
+  try {
+    const text = new Intl.DateTimeFormat('en-US', {
+      timeZone: APP_TIME_ZONE,
+      timeZoneName: 'longOffset',
+    }).format(new Date(date));
+    const match = String(text).match(/GMT([+-])(\d{1,2})(?::?(\d{2}))?/);
+    if (match) {
+      return `${match[1]}${match[2].padStart(2, '0')}:${(match[3] || '00').padStart(2, '0')}`;
+    }
+  } catch (_) {
+    // Older Node builds may not support longOffset.
+  }
+  return '+08:00';
+}
+
+function startOfDay(date) {
+  const key = dayKey(date);
+  const noonUtc = new Date(`${key}T12:00:00.000Z`);
+  return new Date(`${key}T00:00:00${zoneOffset(noonUtc)}`);
+}
+
+function shiftDayKey(key, days) {
+  const [year, month, day] = key.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
 }
 
 function isoWeekKey(date) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const p = zonedParts(date);
+  const d = new Date(Date.UTC(p.year, p.month - 1, p.day));
   const dayNum = d.getUTCDay() || 7;
   d.setUTCDate(d.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
@@ -12,7 +63,8 @@ function isoWeekKey(date) {
 }
 
 function mondayIndex(date) {
-  return (date.getDay() + 6) % 7;
+  const map = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+  return map[zonedParts(date).weekday] ?? 0;
 }
 
 function copyBars(value, length, fallback = 0) {
@@ -27,16 +79,44 @@ function rollPeriodCounters(user, now) {
   if (dayKey(last) !== dayKey(now)) {
     user.todayPushUps = 0;
   }
-  if (last.getMonth() !== now.getMonth() || last.getFullYear() !== now.getFullYear()) {
+  const lastParts = zonedParts(last);
+  const nowParts = zonedParts(now);
+  if (lastParts.month !== nowParts.month || lastParts.year !== nowParts.year) {
     user.monthPushUps = 0;
   }
   if (isoWeekKey(last) !== isoWeekKey(now)) {
     user.weekPushUps = 0;
     user.weekBars = [0, 0, 0, 0, 0, 0, 0];
   }
-  if (last.getFullYear() !== now.getFullYear()) {
+  if (lastParts.year !== nowParts.year) {
     user.yearBars = Array.from({ length: 12 }, () => 0);
   }
+}
+
+async function applyFreshCounters(user, now = new Date()) {
+  if (!user) return user;
+  const before = {
+    todayPushUps: user.todayPushUps,
+    weekPushUps: user.weekPushUps,
+    monthPushUps: user.monthPushUps,
+    weekBars: JSON.stringify(user.weekBars || []),
+    yearBars: JSON.stringify(user.yearBars || []),
+  };
+  rollPeriodCounters(user, now);
+  const changed =
+    user.todayPushUps !== before.todayPushUps ||
+    user.weekPushUps !== before.weekPushUps ||
+    user.monthPushUps !== before.monthPushUps ||
+    JSON.stringify(user.weekBars || []) !== before.weekBars ||
+    JSON.stringify(user.yearBars || []) !== before.yearBars;
+  if (changed && typeof user.save === 'function') {
+    if (typeof user.changed === 'function') {
+      user.changed('weekBars', true);
+      user.changed('yearBars', true);
+    }
+    await user.save();
+  }
+  return user;
 }
 
 function applyStreak(user, now) {
@@ -51,9 +131,7 @@ function applyStreak(user, now) {
   const lastDay = dayKey(last);
   if (lastDay === today) return;
 
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (dayKey(yesterday) === lastDay) {
+  if (shiftDayKey(today, -1) === lastDay) {
     user.streakDays = (user.streakDays || 0) + 1;
   } else {
     user.streakDays = 1;
@@ -78,7 +156,7 @@ async function recordSession(models, user, payload) {
   const weekBars = copyBars(user.weekBars, 7);
   const yearBars = copyBars(user.yearBars, 12);
   weekBars[mondayIndex(now)] += count;
-  yearBars[now.getMonth()] += count;
+  yearBars[zonedParts(now).month - 1] += count;
 
   user.todayPushUps = (user.todayPushUps || 0) + count;
   user.weekPushUps = (user.weekPushUps || 0) + count;
@@ -137,7 +215,10 @@ function formatProduct(product) {
 }
 
 module.exports = {
+  APP_TIME_ZONE,
   dayKey,
+  startOfDay,
+  applyFreshCounters,
   recordSession,
   formatProduct,
 };

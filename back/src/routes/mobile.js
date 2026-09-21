@@ -13,7 +13,7 @@ const {
   OrderItem,
 } = require('../models');
 const { authenticateUser, optionalUser, signUserToken } = require('../middleware/auth');
-const { recordSession, formatProduct, dayKey } = require('../services/stats');
+const { recordSession, formatProduct, startOfDay, applyFreshCounters, dayKey } = require('../services/stats');
 const { getQpayPublic } = require('../services/settings');
 const { createQpayInvoice, checkQpayPayment } = require('../services/qpay');
 const { verifyGoogleIdToken, isGoogleAuthConfigured } = require('../utils/googleAuth');
@@ -42,6 +42,7 @@ function userPayload(user) {
     subscriptionRenewsAt: json.subscriptionRenewsAt,
     googleId: json.googleId || null,
     authProvider: json.googleId ? 'google' : 'email',
+    lastWorkoutAt: json.lastWorkoutAt || null,
   };
 }
 
@@ -113,7 +114,7 @@ async function catalogPayload(currentUser) {
 }
 
 async function dailyLeaderboard(currentUser) {
-  const start = new Date(`${dayKey(new Date())}T00:00:00.000Z`);
+  const start = startOfDay(new Date());
   const rows = await WorkoutSession.findAll({
     attributes: [
       'userId',
@@ -188,6 +189,7 @@ router.post('/auth/google', async (req, res) => {
       return res.status(401).json({ error: 'Account is inactive' });
     }
 
+    await applyFreshCounters(user);
     res.json({
       token: signUserToken(user),
       user: userPayload(user),
@@ -214,6 +216,7 @@ router.post('/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    await applyFreshCounters(user);
     res.json({
       token: signUserToken(user),
       user: userPayload(user),
@@ -233,6 +236,7 @@ router.get('/catalog', optionalUser, async (req, res) => {
 
 router.get('/bootstrap', authenticateUser, async (req, res) => {
   try {
+    await applyFreshCounters(req.user);
     const catalog = await catalogPayload(req.user);
     res.json({
       user: userPayload(req.user),
@@ -243,16 +247,30 @@ router.get('/bootstrap', authenticateUser, async (req, res) => {
   }
 });
 
-router.get('/me', authenticateUser, (req, res) => {
-  res.json({ user: userPayload(req.user) });
+router.get('/me', authenticateUser, async (req, res) => {
+  try {
+    await applyFreshCounters(req.user);
+    res.json({ user: userPayload(req.user) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
+
+const ALLOWED_DAILY_GOALS = [20, 50, 100, 200, 500];
 
 router.patch('/me', authenticateUser, async (req, res) => {
   try {
-    const allowed = ['displayName', 'tagline', 'photoUrl', 'dailyGoalReps'];
+    const allowed = ['displayName', 'tagline', 'photoUrl'];
     allowed.forEach((field) => {
       if (req.body[field] !== undefined) req.user[field] = req.body[field];
     });
+    if (req.body.dailyGoalReps !== undefined) {
+      const goal = Number(req.body.dailyGoalReps);
+      if (!ALLOWED_DAILY_GOALS.includes(goal)) {
+        return res.status(400).json({ error: 'Invalid daily goal' });
+      }
+      req.user.dailyGoalReps = goal;
+    }
     await req.user.save();
     res.json({ user: userPayload(req.user) });
   } catch (err) {
@@ -262,6 +280,7 @@ router.patch('/me', authenticateUser, async (req, res) => {
 
 router.get('/dashboard', authenticateUser, async (req, res) => {
   try {
+    await applyFreshCounters(req.user);
     const catalog = await catalogPayload(req.user);
     res.json({
       user: userPayload(req.user),
@@ -275,6 +294,41 @@ router.get('/dashboard', authenticateUser, async (req, res) => {
 router.get('/leaderboard', optionalUser, async (req, res) => {
   try {
     res.json({ leaderboard: await dailyLeaderboard(req.user || null) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/progress', authenticateUser, async (req, res) => {
+  try {
+    const sessions = await WorkoutSession.findAll({
+      where: { userId: req.user.id },
+      attributes: ['id', 'exerciseTitle', 'repCount', 'durationSeconds', 'completedAt', 'source'],
+      order: [['completedAt', 'ASC']],
+    });
+    const byDay = new Map();
+    for (const session of sessions) {
+      const date = dayKey(session.completedAt);
+      const current = byDay.get(date) || {
+        date,
+        repCount: 0,
+        sessionCount: 0,
+        durationSeconds: 0,
+      };
+      current.repCount += Number(session.repCount) || 0;
+      current.sessionCount += 1;
+      current.durationSeconds += Number(session.durationSeconds) || 0;
+      byDay.set(date, current);
+    }
+    const recent = [...sessions].reverse().slice(0, 20).map((session) => ({
+      id: session.id,
+      title: session.exerciseTitle,
+      repCount: Number(session.repCount) || 0,
+      durationSeconds: Number(session.durationSeconds) || 0,
+      completedAt: session.completedAt,
+      source: session.source,
+    }));
+    res.json({ days: [...byDay.values()], sessions: recent });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
