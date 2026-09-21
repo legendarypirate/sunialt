@@ -139,7 +139,8 @@ export const mn = {
   productImages: 'Бүтээгдэхүүний зураг',
   addImage: 'Зураг нэмэх',
   removeImage: 'Зураг устгах',
-  coverImageHint: 'Эхний зураг нь үндсэн зураг болно.',
+  coverImage: 'Үндсэн',
+  coverImageHint: 'Эхний зураг нь үндсэн зураг болно. Олон зураг байршуулж болно.',
 
   addBadge: 'Тэмдэгт нэмэх',
   editBadge: 'Тэмдэгт засах',

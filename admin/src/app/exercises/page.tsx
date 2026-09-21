@@ -150,7 +150,7 @@ export default function ExercisesPage() {
       </div>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" className="flex h-full w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+        <SheetContent side="right" className="flex h-full w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
           <SheetHeader className="border-b px-6 py-4">
             <SheetTitle>{editing ? mn.editExercise : mn.newExercise}</SheetTitle>
           </SheetHeader>
@@ -254,10 +254,10 @@ export default function ExercisesPage() {
       </Sheet>
 
       <div className="rounded-lg border">
-        <Table>
+        <Table className="table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead>{mn.title}</TableHead>
+              <TableHead className="w-[45%] whitespace-normal">{mn.title}</TableHead>
               <TableHead>{mn.level}</TableHead>
               <TableHead>{mn.targetReps}</TableHead>
               <TableHead>{mn.status}</TableHead>
@@ -271,21 +271,21 @@ export default function ExercisesPage() {
               </TableRow>
             ) : exercises.map((exercise) => (
               <TableRow key={exercise.id}>
-                <TableCell>
-                  <div className="flex items-center gap-3">
+                <TableCell className="whitespace-normal align-top">
+                  <div className="flex min-w-0 items-start gap-3">
                     {exercise.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={exercise.imageUrl}
                         alt=""
-                        className="h-10 w-10 rounded-md object-cover"
+                        className="h-10 w-10 shrink-0 rounded-md object-cover"
                       />
                     ) : (
-                      <div className="h-10 w-10 rounded-md bg-muted" />
+                      <div className="h-10 w-10 shrink-0 rounded-md bg-muted" />
                     )}
-                    <div>
-                      <div className="font-medium">{exercise.title}</div>
-                      <div className="text-xs text-muted-foreground">{exercise.summary}</div>
+                    <div className="min-w-0">
+                      <div className="break-words font-medium">{exercise.title}</div>
+                      <div className="break-words text-xs text-muted-foreground">{exercise.summary}</div>
                     </div>
                   </div>
                 </TableCell>
