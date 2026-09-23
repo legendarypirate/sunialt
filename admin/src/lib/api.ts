@@ -96,6 +96,15 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  grantUserSubscription: (id: string, plan: SubscriptionPlanId, extend = true) =>
+    request<{ user: User; plan: SubscriptionPlanId }>(`/users/${id}/subscription`, {
+      method: 'POST',
+      body: JSON.stringify({ plan, extend }),
+    }),
+
+  revokeUserSubscription: (id: string) =>
+    request<{ user: User }>(`/users/${id}/subscription`, { method: 'DELETE' }),
+
   deleteUser: (id: string) =>
     request<{ message: string }>(`/users/${id}`, { method: 'DELETE' }),
 
@@ -248,6 +257,8 @@ export interface Admin {
   email: string;
   role: string;
 }
+
+export type SubscriptionPlanId = 'monthly' | 'quarterly' | 'yearly';
 
 export interface User {
   id: string;

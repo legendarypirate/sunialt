@@ -61,9 +61,61 @@ function addMonths(date, months) {
   return next;
 }
 
+function formatDateOnly(date) {
+  return new Date(date).toISOString().slice(0, 10);
+}
+
+function buildUserSubscriptionFields(user, planId, { extend = true } = {}) {
+  const plan = getSubscriptionPlan(planId);
+  if (!plan) {
+    const err = new Error('Буруу төлөвлөгөө. Зөвшөөрөгдсөн: monthly, quarterly, yearly');
+    err.status = 400;
+    throw err;
+  }
+
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+
+  let startedAt = today;
+  let endBase = today;
+
+  if (extend && user.isPlusSubscriber && user.subscriptionRenewsAt) {
+    const currentEnd = new Date(`${user.subscriptionRenewsAt}T12:00:00`);
+    if (!Number.isNaN(currentEnd.getTime()) && currentEnd >= today) {
+      endBase = currentEnd;
+      if (user.subscriptionStartedAt) {
+        const existingStart = new Date(`${user.subscriptionStartedAt}T12:00:00`);
+        if (!Number.isNaN(existingStart.getTime())) {
+          startedAt = existingStart;
+        }
+      }
+    }
+  }
+
+  const renewsAt = addMonths(endBase, plan.months);
+
+  return {
+    isPlusSubscriber: true,
+    subscriptionPlan: plan.planName,
+    subscriptionStartedAt: formatDateOnly(startedAt),
+    subscriptionRenewsAt: formatDateOnly(renewsAt),
+  };
+}
+
+function buildRevokedSubscriptionFields() {
+  return {
+    isPlusSubscriber: false,
+    subscriptionPlan: null,
+    subscriptionStartedAt: null,
+    subscriptionRenewsAt: null,
+  };
+}
+
 module.exports = {
   listSubscriptionPlans,
   getSubscriptionPlan,
   resolvePlanId,
   addMonths,
+  buildUserSubscriptionFields,
+  buildRevokedSubscriptionFields,
 };

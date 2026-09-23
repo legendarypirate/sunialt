@@ -2,6 +2,11 @@ const express = require('express');
 const { Op } = require('sequelize');
 const { User } = require('../models');
 const { authenticateAdmin } = require('../middleware/auth');
+const {
+  resolvePlanId,
+  buildUserSubscriptionFields,
+  buildRevokedSubscriptionFields,
+} = require('../services/subscriptionPlans');
 
 const router = express.Router();
 router.use(authenticateAdmin);
@@ -51,6 +56,37 @@ router.get('/:id', async (req, res) => {
     res.json({ user });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/:id/subscription', async (req, res) => {
+  try {
+    const user = await User.findByPk(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const planId = resolvePlanId(req.body?.plan);
+    if (!planId) {
+      return res.status(400).json({ error: 'Буруу төлөвлөгөө. Зөвшөөрөгдсөн: monthly, quarterly, yearly' });
+    }
+
+    const extend = req.body?.extend !== false;
+    const fields = buildUserSubscriptionFields(user, planId, { extend });
+    await user.update(fields);
+    res.json({ user, plan: planId });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+router.delete('/:id/subscription', async (req, res) => {
+  try {
+    const user = await User.findByPk(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    await user.update(buildRevokedSubscriptionFields());
+    res.json({ user });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
