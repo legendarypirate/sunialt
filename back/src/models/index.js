@@ -32,6 +32,7 @@ UserBadge.belongsTo(Badge, { foreignKey: 'badgeId', as: 'badge' });
 
 User.hasMany(Duel, { foreignKey: 'userId', as: 'duels' });
 Duel.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+Duel.belongsTo(User, { foreignKey: 'opponentId', as: 'opponent' });
 
 User.hasMany(Order, { foreignKey: 'userId', as: 'orders' });
 Order.belongsTo(User, { foreignKey: 'userId', as: 'user' });

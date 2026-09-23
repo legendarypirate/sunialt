@@ -1,4 +1,6 @@
 require('dotenv').config();
+const http = require('http');
+const { Server } = require('socket.io');
 const app = require('./app');
 const { sequelize } = require('./models');
 const { ensureAdmin } = require('./scripts/ensureAdmin');
@@ -6,6 +8,7 @@ const { migrate: migrateExerciseIntro } = require('./scripts/migrateExerciseIntr
 const { migrate: migrateProductImages } = require('./scripts/migrateProductImages');
 const { migrate: migrateExerciseProfileCover } = require('./scripts/migrateExerciseProfileCover');
 const { migrate: migrateUserBodyProfile } = require('./scripts/migrateUserBodyProfile');
+const { attachDuelSocket } = require('./sockets/duelSocket');
 
 const PORT = process.env.PORT || 3071;
 
@@ -23,8 +26,19 @@ async function start() {
 
     await ensureAdmin();
 
-    app.listen(PORT, () => {
+    const server = http.createServer(app);
+    const io = new Server(server, {
+      cors: {
+        origin: (_origin, callback) => callback(null, true),
+        credentials: true,
+      },
+      path: '/socket.io',
+    });
+    attachDuelSocket(io);
+
+    server.listen(PORT, () => {
       console.log(`SUNIA backend running on http://localhost:${PORT}`);
+      console.log(`Socket.io duel signaling on ws://localhost:${PORT}`);
     });
   } catch (err) {
     console.error('Failed to start server:', err.message);

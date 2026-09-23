@@ -388,6 +388,115 @@ router.post('/sessions', authenticateUser, async (req, res) => {
   }
 });
 
+const ONLINE_WINDOW_MS = 15 * 60 * 1000;
+
+function formatLastSeen(lastWorkoutAt) {
+  if (!lastWorkoutAt) return 'Сүүлд идэвхгүй';
+  const diffMs = Date.now() - new Date(lastWorkoutAt).getTime();
+  if (diffMs < ONLINE_WINDOW_MS) return 'Онлайн';
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 60) return `Сүүлд ${minutes} минутын өмнө`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `Сүүлд ${hours} цагийн өмнө`;
+  const days = Math.floor(hours / 24);
+  return `Сүүлд ${days} өдрийн өмнө`;
+}
+
+function formatBattleDate(date) {
+  const d = new Date(date);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}.${m}.${day}`;
+}
+
+router.get('/friends', authenticateUser, async (req, res) => {
+  try {
+    await applyFreshCounters(req.user);
+    const onlineSince = new Date(Date.now() - ONLINE_WINDOW_MS);
+    const users = await User.findAll({
+      where: {
+        isActive: true,
+        id: { [Op.ne]: req.user.id },
+        publicId: { [Op.ne]: null },
+      },
+      attributes: [
+        'publicId',
+        'displayName',
+        'photoUrl',
+        'todayPushUps',
+        'streakDays',
+        'lastWorkoutAt',
+      ],
+      order: [['todayPushUps', 'DESC'], ['displayName', 'ASC']],
+      limit: 50,
+    });
+
+    const friends = users
+      .map((user) => ({
+        id: user.publicId,
+        name: user.displayName || 'Хэрэглэгч',
+        photoUrl: user.photoUrl,
+        todayPushUps: user.todayPushUps || 0,
+        streakDays: user.streakDays || 0,
+        isOnline: Boolean(user.lastWorkoutAt && user.lastWorkoutAt >= onlineSince),
+        lastSeen: formatLastSeen(user.lastWorkoutAt),
+        inMatch: false,
+      }))
+      .sort((a, b) => {
+        if (a.isOnline !== b.isOnline) return a.isOnline ? -1 : 1;
+        return b.todayPushUps - a.todayPushUps;
+      });
+
+    res.json({ friends });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/duels/recent', authenticateUser, async (req, res) => {
+  try {
+    const duels = await Duel.findAll({
+      where: {
+        [Op.or]: [
+          { userId: req.user.id },
+          { opponentId: req.user.id },
+        ],
+      },
+      include: [
+        { model: User, as: 'user', attributes: ['publicId', 'displayName'] },
+        { model: User, as: 'opponent', attributes: ['publicId', 'displayName'], required: false },
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: 20,
+    });
+
+    res.json({
+      battles: duels.map((duel) => {
+        const isCreator = duel.userId === req.user.id;
+        const youScore = isCreator ? duel.userScore : duel.opponentScore;
+        const theirScore = isCreator ? duel.opponentScore : duel.userScore;
+        const theirName = isCreator
+          ? duel.opponent?.displayName || duel.opponentName || 'Сөрөгч'
+          : duel.user?.displayName || 'Сөрөгч';
+
+        return {
+          id: duel.id,
+          leftName: 'Та',
+          leftScore: youScore,
+          rightName: theirName,
+          rightScore: theirScore,
+          challengeName: 'Шууд тулаан',
+          dateLabel: formatBattleDate(duel.createdAt),
+          youOnLeft: true,
+        };
+      }),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/users/lookup', authenticateUser, async (req, res) => {
   try {
     const publicId = clampInt(req.query.id, 1, 999999999);
