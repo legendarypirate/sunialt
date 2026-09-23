@@ -48,6 +48,9 @@ npm install
 npm run dev       # http://localhost:3070
 ```
 
+Public pages (App Store / Play Store):
+- `http://localhost:3070/privacy` — Privacy policy (production: `https://suniagch.mn/privacy`)
+
 ## Database Models
 
 - **admins** — Admin panel users
