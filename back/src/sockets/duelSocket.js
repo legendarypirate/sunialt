@@ -279,14 +279,31 @@ function attachDuelSocket(io) {
     });
 
     socket.on('disconnect', () => {
-      if (activeRoom) {
-        const roomId = activeRoom;
-        const room = io.sockets.adapter.rooms.get(roomId);
-        leaveActiveRoom();
-        if (!room || room.size === 0) {
+      if (!activeRoom) return;
+      const roomId = activeRoom;
+      const publicId = me.publicId;
+      activeRoom = null;
+
+      setTimeout(() => {
+        const userStillOnline = (io.sockets.adapter.rooms.get(userRoom(publicId))?.size ?? 0) > 0;
+        if (userStillOnline) return;
+
+        const state = roomState.get(roomId);
+        if (state) {
+          state.ready.delete(publicId);
+        }
+        io.to(roomId).emit('duel:peer-left', { publicId });
+
+        const peersRemaining = io.sockets.adapter.rooms.get(roomId)?.size ?? 0;
+        if (state?.active && peersRemaining < 2) {
+          endDuel(io, roomId);
+        } else if (state && !state.active) {
+          emitReadyUpdate(io, roomId);
+        }
+        if (peersRemaining === 0) {
           resetRoomOnEmpty(roomId);
         }
-      }
+      }, 4000);
     });
 
     socket.on('duel:leave', () => {
