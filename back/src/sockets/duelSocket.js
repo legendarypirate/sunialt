@@ -263,7 +263,15 @@ function attachDuelSocket(io) {
 
     socket.on('duel:frame', (payload) => {
       if (!activeRoom) return;
-      socket.to(activeRoom).emit('duel:peer-frame', payload);
+      let relay = payload;
+      if (Buffer.isBuffer(payload)) {
+        relay = { jpeg: payload };
+      } else if (Array.isArray(payload)) {
+        relay = { jpeg: payload };
+      } else if (payload?.jpeg == null && payload?.data != null) {
+        relay = { jpeg: payload.data };
+      }
+      socket.to(activeRoom).emit('duel:peer-frame', relay);
     });
 
     socket.on('duel:rep', ({ count }) => {
