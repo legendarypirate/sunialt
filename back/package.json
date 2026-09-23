@@ -7,7 +7,7 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "db:sync": "node src/scripts/syncDb.js",
-    "db:migrate": "node src/scripts/migrateExerciseIntro.js && node src/scripts/migrateProductImages.js && node src/scripts/migrateExerciseProfileCover.js && node src/scripts/migrateUserBodyProfile.js && node src/scripts/migrateBadgeImages.js && node src/scripts/migrateDuelOpponent.js && node src/scripts/migrateUserPublicId.js && node src/scripts/migrateProductCategories.js && node src/scripts/migrateProductTabs.js",
+    "db:migrate": "node src/scripts/migrateExerciseIntro.js && node src/scripts/migrateProductImages.js && node src/scripts/migrateExerciseProfileCover.js && node src/scripts/migrateUserBodyProfile.js && node src/scripts/migrateBadgeImages.js && node src/scripts/migrateDuelOpponent.js && node src/scripts/migrateUserPublicId.js && node src/scripts/migrateProductTabs.js && node src/scripts/migrateProductCategories.js",
     "db:seed": "node src/scripts/seedDb.js"
   },
   "dependencies": {

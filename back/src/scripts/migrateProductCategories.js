@@ -1,4 +1,4 @@
-const { sequelize, Product, ProductCategory } = require('../models');
+const { sequelize, ProductCategory } = require('../models');
 
 const DEFAULT_CATEGORIES = [
   { name: 'Суниалтын төхөөрөмж', slug: 'gear', icon: 'fitness_center', sortOrder: 1 },
@@ -32,12 +32,16 @@ async function migrate() {
       where: { slug: row.slug },
       defaults: row,
     });
-    await Product.update(
-      { categoryId: category.id, category: category.name },
+    await sequelize.query(
+      `
+      UPDATE products
+      SET category_id = :categoryId, category = :categoryName
+      WHERE category_id IS NULL AND category = :categoryName
+      `,
       {
-        where: {
-          categoryId: null,
-          category: category.name,
+        replacements: {
+          categoryId: category.id,
+          categoryName: category.name,
         },
       },
     );
@@ -47,14 +51,27 @@ async function migrate() {
   const byName = Object.fromEntries(categories.map((c) => [c.name, c]));
   const fallback = categories[0];
 
-  const products = await Product.findAll({ where: { categoryId: null } });
+  const [products] = await sequelize.query(`
+    SELECT id, category FROM products WHERE category_id IS NULL
+  `);
+
   for (const product of products) {
     const match = byName[product.category] || fallback;
     if (match) {
-      await product.update({
-        categoryId: match.id,
-        category: match.name,
-      });
+      await sequelize.query(
+        `
+        UPDATE products
+        SET category_id = :categoryId, category = :categoryName
+        WHERE id = :id
+        `,
+        {
+          replacements: {
+            categoryId: match.id,
+            categoryName: match.name,
+            id: product.id,
+          },
+        },
+      );
     }
   }
 

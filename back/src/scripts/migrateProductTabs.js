@@ -22,11 +22,16 @@ async function migrate() {
     ALTER TABLE products ADD COLUMN IF NOT EXISTS show_tab_size BOOLEAN DEFAULT true
   `);
 
-  console.log('Product tab columns ready');
-  await sequelize.close();
+  console.log('Product tab columns migrated');
 }
 
-migrate().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (require.main === module) {
+  migrate()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error(err);
+      process.exit(1);
+    });
+}
+
+module.exports = { migrate };
