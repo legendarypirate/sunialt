@@ -406,9 +406,11 @@ export interface Order {
 
 export interface PaymentSettings {
   qpayEnabled: boolean;
+  qpayConfigured?: boolean;
   qpayClientId: string;
   qpayClientSecret: string;
   qpayInvoiceCode: string;
+  qpayReceiverCode: string;
   qpayBaseUrl: string;
   qpayCallbackUrl: string;
 }

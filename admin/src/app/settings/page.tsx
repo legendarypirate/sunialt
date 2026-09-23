@@ -13,9 +13,11 @@ import { mn } from '@/lib/mn';
 
 const empty: PaymentSettings = {
   qpayEnabled: true,
+  qpayConfigured: false,
   qpayClientId: '',
   qpayClientSecret: '',
   qpayInvoiceCode: '',
+  qpayReceiverCode: 'DEFAULT_COM_ID',
   qpayBaseUrl: 'https://merchant.qpay.mn/v2',
   qpayCallbackUrl: '',
 };
@@ -53,6 +55,9 @@ export default function SettingsPage() {
             <div>
               <div className="font-medium">{mn.qpayEnabled}</div>
               <p className="text-sm text-muted-foreground">{mn.qpayHint}</p>
+              <p className={`text-sm mt-1 ${form.qpayConfigured ? 'text-green-600' : 'text-amber-600'}`}>
+                {form.qpayConfigured ? mn.qpayConfigured : mn.qpayNotConfigured}
+              </p>
             </div>
             <Switch
               checked={form.qpayEnabled}
@@ -70,6 +75,10 @@ export default function SettingsPage() {
           <div className="space-y-2">
             <Label>{mn.qpayInvoiceCode}</Label>
             <Input value={form.qpayInvoiceCode} onChange={(e) => setForm({ ...form, qpayInvoiceCode: e.target.value })} />
+          </div>
+          <div className="space-y-2">
+            <Label>{mn.qpayReceiverCode}</Label>
+            <Input value={form.qpayReceiverCode} onChange={(e) => setForm({ ...form, qpayReceiverCode: e.target.value })} />
           </div>
           <div className="space-y-2">
             <Label>{mn.qpayBaseUrl}</Label>

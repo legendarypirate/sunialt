@@ -28,6 +28,9 @@ router.put('/', async (req, res) => {
     if (payload.qpayInvoiceCode !== undefined) {
       await setSetting('qpay_invoice_code', payload.qpayInvoiceCode);
     }
+    if (payload.qpayReceiverCode !== undefined) {
+      await setSetting('qpay_receiver_code', payload.qpayReceiverCode);
+    }
     if (payload.qpayBaseUrl !== undefined) {
       await setSetting('qpay_base_url', payload.qpayBaseUrl);
     }
