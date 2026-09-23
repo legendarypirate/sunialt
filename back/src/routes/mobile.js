@@ -686,13 +686,27 @@ router.post('/orders', authenticateUser, async (req, res) => {
 });
 
 const SUBSCRIPTION_ITEM_TITLE = '__subscription__';
+const {
+  listSubscriptionPlans,
+  getSubscriptionPlan,
+  resolvePlanId,
+  addMonths,
+} = require('../services/subscriptionPlans');
 
-async function activateSubscription(user) {
-  const renews = new Date();
-  renews.setMonth(renews.getMonth() + 1);
+function parseOrderPlanId(order) {
+  const address = String(order.address || '');
+  if (address.startsWith('subscription:')) {
+    return address.slice('subscription:'.length);
+  }
+  return 'monthly';
+}
+
+async function activateSubscription(user, planId = 'monthly') {
+  const plan = getSubscriptionPlan(planId) || getSubscriptionPlan('monthly');
+  const renews = addMonths(new Date(), plan.months);
   await user.update({
     isPlusSubscriber: true,
-    subscriptionPlan: 'Pro төлөвлөгөө',
+    subscriptionPlan: plan.planName,
     subscriptionRenewsAt: renews.toISOString().slice(0, 10),
   });
 }
@@ -701,6 +715,14 @@ function isSubscriptionOrder(order) {
   const items = order.items || [];
   return items.some((item) => item.title === SUBSCRIPTION_ITEM_TITLE);
 }
+
+router.get('/subscription/plans', authenticateUser, async (_req, res) => {
+  try {
+    res.json(listSubscriptionPlans());
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
 
 router.post('/subscription/checkout', authenticateUser, async (req, res) => {
   try {
@@ -713,8 +735,13 @@ router.post('/subscription/checkout', authenticateUser, async (req, res) => {
       return res.status(400).json({ error: 'QPay is disabled' });
     }
 
+    const planId = resolvePlanId(req.body?.plan);
+    if (!planId) {
+      return res.status(400).json({ error: 'Буруу төлөвлөгөө. Зөвшөөрөгдсөн: monthly, quarterly, yearly' });
+    }
+    const plan = getSubscriptionPlan(planId);
     const price = Number(
-      await getSetting('subscription_price', process.env.SUBSCRIPTION_PRICE || '19900'),
+      await getSetting(`subscription_price_${planId}`, String(plan.price)),
     );
     if (!Number.isFinite(price) || price <= 0) {
       return res.status(400).json({ error: 'Subscription price is not configured' });
@@ -727,19 +754,19 @@ router.post('/subscription/checkout', authenticateUser, async (req, res) => {
       paymentMethod: 'qpay',
       paymentStatus: 'unpaid',
       phone: 'premium',
-      address: 'subscription',
+      address: `subscription:${planId}`,
     });
     await OrderItem.create({
       orderId: order.id,
       title: SUBSCRIPTION_ITEM_TITLE,
-      quantity: 1,
+      quantity: plan.months,
       unitPrice: price,
     });
 
     const invoice = await createQpayInvoice({
       amount: price,
       orderId: order.id,
-      description: 'SUNIA Pro',
+      description: `SUNIA Pro ${plan.label}`,
     });
     order.qpayInvoiceId = invoice.invoiceId;
     order.qpayQrImage = invoice.qrImage;
@@ -748,6 +775,7 @@ router.post('/subscription/checkout', authenticateUser, async (req, res) => {
 
     const created = await Order.findByPk(order.id, { include: [{ model: OrderItem, as: 'items' }] });
     res.status(201).json({
+      plan: getSubscriptionPlan(planId),
       order: created,
       qpay: {
         enabled: true,
@@ -782,13 +810,14 @@ router.post('/subscription/:id/qpay/check', authenticateUser, async (req, res) =
       order.paymentStatus = 'paid';
       order.status = 'paid';
       await order.save();
-      await activateSubscription(req.user);
+      await activateSubscription(req.user, parseOrderPlanId(order));
       await req.user.reload();
     }
 
     res.json({
       paid: order.paymentStatus === 'paid',
       order,
+      plan: getSubscriptionPlan(parseOrderPlanId(order)),
       user: userPayload(req.user),
     });
   } catch (err) {
