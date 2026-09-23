@@ -10,6 +10,7 @@ const { migrate: migrateExerciseProfileCover } = require('./scripts/migrateExerc
 const { migrate: migrateUserBodyProfile } = require('./scripts/migrateUserBodyProfile');
 const { attachDuelSocket } = require('./sockets/duelSocket');
 const { initFirebaseAdmin } = require('./services/fcm');
+const { startDailyGoalReminderScheduler } = require('./jobs/dailyGoalReminderScheduler');
 
 const PORT = process.env.PORT || 3071;
 
@@ -27,6 +28,7 @@ async function start() {
 
     await ensureAdmin();
     initFirebaseAdmin();
+    startDailyGoalReminderScheduler();
 
     const server = http.createServer(app);
     const io = new Server(server, {

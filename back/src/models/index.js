@@ -15,10 +15,13 @@ const Order = require('./Order');
 const OrderItem = require('./OrderItem');
 const Setting = require('./Setting');
 const DeviceToken = require('./DeviceToken');
+const NotificationLog = require('./NotificationLog');
 
 User.hasMany(WorkoutSession, { foreignKey: 'userId', as: 'sessions' });
 User.hasMany(DeviceToken, { foreignKey: 'userId', as: 'deviceTokens', onDelete: 'CASCADE' });
+User.hasMany(NotificationLog, { foreignKey: 'userId', as: 'notificationLogs', onDelete: 'CASCADE' });
 DeviceToken.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+NotificationLog.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 WorkoutSession.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 WorkoutSession.belongsTo(Exercise, { foreignKey: 'exerciseId', as: 'exercise' });
 WorkoutSession.belongsTo(Challenge, { foreignKey: 'challengeId', as: 'challenge' });
@@ -65,4 +68,5 @@ module.exports = {
   OrderItem,
   Setting,
   DeviceToken,
+  NotificationLog,
 };
