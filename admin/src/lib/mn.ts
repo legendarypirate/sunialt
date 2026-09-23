@@ -66,6 +66,7 @@ export const mn = {
   active: 'Идэвхтэй',
   inactive: 'Идэвхгүй',
   noUsersFound: 'Хэрэглэгч олдсонгүй',
+  deleteUser: 'Энэ хэрэглэгчийг устгах уу?',
   days: 'хоног',
   min: 'мин',
   reps: 'суниалт',

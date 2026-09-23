@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import { AdminShell } from '@/components/admin-shell';
 import { useAdminQuery } from '@/hooks/use-admin-query';
 import { Badge } from '@/components/ui/badge';
@@ -45,6 +46,12 @@ export default function UsersPage() {
     setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
   };
 
+  const remove = async (user: User) => {
+    if (!confirm(mn.deleteUser)) return;
+    await api.deleteUser(user.id);
+    setUsers((prev) => prev.filter((u) => u.id !== user.id));
+  };
+
   return (
     <AdminShell title={mn.users}>
       <div className="mb-4 flex gap-2">
@@ -69,18 +76,19 @@ export default function UsersPage() {
               <TableHead>{mn.reps}</TableHead>
               <TableHead>{mn.plus}</TableHead>
               <TableHead>{mn.active}</TableHead>
+              <TableHead className="text-right">{mn.actions}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground">
+                <TableCell colSpan={9} className="text-center text-muted-foreground">
                   {mn.loading}
                 </TableCell>
               </TableRow>
             ) : users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground">
+                <TableCell colSpan={9} className="text-center text-muted-foreground">
                   {mn.noUsersFound}
                 </TableCell>
               </TableRow>
@@ -102,6 +110,11 @@ export default function UsersPage() {
                   </TableCell>
                   <TableCell>
                     <Switch checked={user.isActive} onCheckedChange={() => toggleActive(user)} />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" onClick={() => remove(user)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))
