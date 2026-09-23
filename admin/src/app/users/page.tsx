@@ -19,6 +19,13 @@ import {
 import { api, User } from '@/lib/api';
 import { mn } from '@/lib/mn';
 
+function formatSubscriptionDate(value?: string | null) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString('mn-MN');
+}
+
 export default function UsersPage() {
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
@@ -52,6 +59,8 @@ export default function UsersPage() {
     setUsers((prev) => prev.filter((u) => u.id !== user.id));
   };
 
+  const columnCount = 12;
+
   return (
     <AdminShell title={mn.users}>
       <div className="mb-4 flex gap-2">
@@ -64,7 +73,7 @@ export default function UsersPage() {
         <Button onClick={() => setQuery(search)} variant="secondary">{mn.search}</Button>
       </div>
 
-      <div className="rounded-lg border">
+      <div className="overflow-x-auto rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -75,6 +84,9 @@ export default function UsersPage() {
               <TableHead>{mn.workouts}</TableHead>
               <TableHead>{mn.reps}</TableHead>
               <TableHead>{mn.plus}</TableHead>
+              <TableHead>{mn.subscriptionPlan}</TableHead>
+              <TableHead>{mn.subscriptionStart}</TableHead>
+              <TableHead>{mn.subscriptionEnd}</TableHead>
               <TableHead>{mn.active}</TableHead>
               <TableHead className="text-right">{mn.actions}</TableHead>
             </TableRow>
@@ -82,13 +94,13 @@ export default function UsersPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center text-muted-foreground">
+                <TableCell colSpan={columnCount} className="text-center text-muted-foreground">
                   {mn.loading}
                 </TableCell>
               </TableRow>
             ) : users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center text-muted-foreground">
+                <TableCell colSpan={columnCount} className="text-center text-muted-foreground">
                   {mn.noUsersFound}
                 </TableCell>
               </TableRow>
@@ -107,6 +119,15 @@ export default function UsersPage() {
                   <TableCell>{user.totalPushUps || 0}</TableCell>
                   <TableCell>
                     <Switch checked={user.isPlusSubscriber} onCheckedChange={() => togglePlus(user)} />
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-sm">
+                    {user.isPlusSubscriber ? user.subscriptionPlan || 'Pro' : '—'}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                    {user.isPlusSubscriber ? formatSubscriptionDate(user.subscriptionStartedAt) : '—'}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                    {user.isPlusSubscriber ? formatSubscriptionDate(user.subscriptionRenewsAt) : '—'}
                   </TableCell>
                   <TableCell>
                     <Switch checked={user.isActive} onCheckedChange={() => toggleActive(user)} />

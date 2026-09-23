@@ -9,6 +9,7 @@ const { migrate: migrateProductImages } = require('./scripts/migrateProductImage
 const { migrate: migrateExerciseProfileCover } = require('./scripts/migrateExerciseProfileCover');
 const { migrate: migrateUserBodyProfile } = require('./scripts/migrateUserBodyProfile');
 const { migrate: migrateNotificationInbox } = require('./scripts/migrateNotificationInbox');
+const { migrate: migrateSubscriptionDates } = require('./scripts/migrateSubscriptionDates');
 const { attachDuelSocket } = require('./sockets/duelSocket');
 const { initFirebaseAdmin } = require('./services/fcm');
 const { startDailyGoalReminderScheduler } = require('./jobs/dailyGoalReminderScheduler');
@@ -25,6 +26,7 @@ async function start() {
     await migrateExerciseProfileCover();
     await migrateUserBodyProfile();
     await migrateNotificationInbox();
+    await migrateSubscriptionDates();
     await sequelize.sync({ alter: process.env.NODE_ENV === 'development' });
     console.log('Database synced');
 

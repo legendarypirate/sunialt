@@ -263,6 +263,9 @@ export interface User {
   todayPushUps?: number;
   totalPushUps?: number;
   isPlusSubscriber: boolean;
+  subscriptionPlan?: string | null;
+  subscriptionStartedAt?: string | null;
+  subscriptionRenewsAt?: string | null;
   isActive: boolean;
   createdAt: string;
 }

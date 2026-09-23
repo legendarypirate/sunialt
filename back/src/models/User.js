@@ -114,6 +114,11 @@ const User = sequelize.define('User', {
     allowNull: true,
     field: 'subscription_plan',
   },
+  subscriptionStartedAt: {
+    type: DataTypes.DATEONLY,
+    allowNull: true,
+    field: 'subscription_started_at',
+  },
   subscriptionRenewsAt: {
     type: DataTypes.DATEONLY,
     allowNull: true,

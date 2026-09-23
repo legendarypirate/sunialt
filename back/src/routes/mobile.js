@@ -54,6 +54,7 @@ function userPayload(user) {
     yearBars: json.yearBars || Array.from({ length: 12 }, () => 0),
     isPro: json.isPlusSubscriber,
     subscriptionPlan: json.subscriptionPlan,
+    subscriptionStartedAt: json.subscriptionStartedAt,
     subscriptionRenewsAt: json.subscriptionRenewsAt,
     googleId: json.googleId || null,
     authProvider: json.googleId ? 'google' : 'email',
@@ -703,10 +704,12 @@ function parseOrderPlanId(order) {
 
 async function activateSubscription(user, planId = 'monthly') {
   const plan = getSubscriptionPlan(planId) || getSubscriptionPlan('monthly');
-  const renews = addMonths(new Date(), plan.months);
+  const started = new Date();
+  const renews = addMonths(started, plan.months);
   await user.update({
     isPlusSubscriber: true,
     subscriptionPlan: plan.planName,
+    subscriptionStartedAt: started.toISOString().slice(0, 10),
     subscriptionRenewsAt: renews.toISOString().slice(0, 10),
   });
 }

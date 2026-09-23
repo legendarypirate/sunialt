@@ -63,11 +63,30 @@ router.patch('/:id', async (req, res) => {
       'displayName', 'tagline', 'streakDays', 'workoutDays', 'completedWorkouts',
       'earnedMinutes', 'isPlusSubscriber', 'isActive', 'dailyGoalReps',
       'todayPushUps', 'weekPushUps', 'monthPushUps', 'totalPushUps',
-      'subscriptionPlan', 'subscriptionRenewsAt',
+      'subscriptionPlan', 'subscriptionStartedAt', 'subscriptionRenewsAt',
     ];
     allowed.forEach((field) => {
       if (req.body[field] !== undefined) user[field] = req.body[field];
     });
+
+    if (req.body.isPlusSubscriber === true) {
+      const today = new Date().toISOString().slice(0, 10);
+      if (!user.subscriptionStartedAt) {
+        user.subscriptionStartedAt = today;
+      }
+      if (!user.subscriptionRenewsAt) {
+        const end = new Date();
+        end.setMonth(end.getMonth() + 1);
+        user.subscriptionRenewsAt = end.toISOString().slice(0, 10);
+      }
+      if (!user.subscriptionPlan) {
+        user.subscriptionPlan = 'Pro 1 сар';
+      }
+    } else if (req.body.isPlusSubscriber === false) {
+      user.subscriptionStartedAt = null;
+      user.subscriptionRenewsAt = null;
+      user.subscriptionPlan = null;
+    }
 
     await user.save();
     res.json({ user });
