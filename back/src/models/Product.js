@@ -19,6 +19,11 @@ const Product = sequelize.define('Product', {
     type: DataTypes.STRING,
     defaultValue: 'Суниалтын төхөөрөмж',
   },
+  categoryId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'category_id',
+  },
   rating: {
     type: DataTypes.DECIMAL(3, 1),
     defaultValue: 0,

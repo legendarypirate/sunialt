@@ -19,6 +19,13 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Table,
   TableBody,
   TableCell,
@@ -26,14 +33,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { api, Product } from '@/lib/api';
+import { api, Product, ProductCategory } from '@/lib/api';
 import { adminDrawerWidthClass } from '@/lib/layout';
 import { mn } from '@/lib/mn';
 
 type ProductForm = {
   title: string;
   description: string;
-  category: string;
+  categoryId: string;
   price: string;
   rating: string;
   reviews: number;
@@ -46,7 +53,7 @@ type ProductForm = {
 const emptyForm: ProductForm = {
   title: '',
   description: '',
-  category: 'Суниалтын төхөөрөмж',
+  categoryId: '',
   price: '',
   rating: '4.5',
   reviews: 0,
@@ -67,6 +74,7 @@ function productImages(product: Product) {
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyForm);
@@ -74,16 +82,23 @@ export default function ProductsPage() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const { data } = useAdminQuery(() => api.getProducts(), [refreshKey]);
+  const { data: categoryData } = useAdminQuery(() => api.getProductCategories(), [refreshKey]);
 
   useEffect(() => {
     if (data?.products) setProducts(data.products);
   }, [data]);
 
+  useEffect(() => {
+    if (categoryData?.categories) setCategories(categoryData.categories);
+  }, [categoryData]);
+
   const load = useCallback(() => setRefreshKey((k) => k + 1), []);
+
+  const defaultCategoryId = () => categories[0]?.id ?? '';
 
   const openCreate = () => {
     setEditing(null);
-    setForm(emptyForm);
+    setForm({ ...emptyForm, categoryId: defaultCategoryId() });
     setOpen(true);
   };
 
@@ -92,7 +107,7 @@ export default function ProductsPage() {
     setForm({
       title: p.title,
       description: p.description || '',
-      category: p.category || 'Суниалтын төхөөрөмж',
+      categoryId: p.categoryId || defaultCategoryId(),
       price: String(p.price),
       rating: String(p.rating || 0),
       reviews: p.reviews || 0,
@@ -111,7 +126,7 @@ export default function ProductsPage() {
       const payload = {
         title: form.title,
         description: form.description,
-        category: form.category,
+        categoryId: form.categoryId || null,
         price: Number(form.price),
         rating: Number(form.rating),
         reviews: Number(form.reviews),
@@ -177,7 +192,17 @@ export default function ProductsPage() {
               </div>
               <div className="space-y-2">
                 <Label>{mn.category}</Label>
-                <Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+                <Select
+                  value={form.categoryId}
+                  onValueChange={(value) => value && setForm({ ...form, categoryId: value })}
+                >
+                  <SelectTrigger><SelectValue placeholder={mn.selectCategory} /></SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">

@@ -6,6 +6,7 @@ const {
   Workout,
   Challenge,
   Product,
+  ProductCategory,
   Exercise,
   Badge,
   WorkoutSession,
@@ -216,26 +217,26 @@ async function seed() {
     if (await Challenge.count() === 0) {
       await Challenge.bulkCreate([
         {
-          name: '1 минутын суналт',
+          name: '1 минутын суниалт',
           kind: 'daily',
-          description: '60 секундэд хамгийн олон суналт хий.',
+          description: '60 секундэд хамгийн олон суниалт хий.',
           timeLimitSeconds: 60,
           durationDays: 1,
           weeklyGoalDays: 1,
           isActive: true,
         },
         {
-          name: 'Тэсвэрийн суналт',
+          name: 'Тэсвэрийн суниалт',
           kind: 'daily',
-          description: 'Хамгийн удаан тасралтгүй суналт хий.',
+          description: 'Хамгийн удаан тасралтгүй суниалт хий.',
           durationDays: 1,
           weeklyGoalDays: 1,
           isActive: true,
         },
         {
-          name: '100 суналт',
+          name: '100 суниалт',
           kind: 'daily',
-          description: '100 суналтыг хамгийн хурдан дуусга.',
+          description: '100 суниалтыг хамгийн хурдан дуусга.',
           durationDays: 1,
           weeklyGoalDays: 1,
           isActive: true,
@@ -266,12 +267,21 @@ async function seed() {
       console.log('Challenges seeded');
     }
 
+    const { DEFAULT_CATEGORIES } = require('./migrateProductCategories');
+    if (await ProductCategory.count() === 0) {
+      await ProductCategory.bulkCreate(DEFAULT_CATEGORIES);
+      console.log('Product categories seeded');
+    }
+
     if (await Product.count() === 0) {
+      const categories = await ProductCategory.findAll();
+      const bySlug = Object.fromEntries(categories.map((c) => [c.slug, c]));
       await Product.bulkCreate([
         {
           title: 'Олон үйлдэлт суниалтын тавцан',
           description: 'Олон өнцгөөр суниалт хийх тавцан',
-          category: 'Суниалтын төхөөрөмж',
+          category: bySlug.gear.name,
+          categoryId: bySlug.gear.id,
           price: 89000,
           rating: 4.8,
           reviews: 124,
@@ -281,7 +291,8 @@ async function seed() {
         {
           title: 'Эвхэгддэг суниалтын тавцан',
           description: 'Гэртээ хэрэглэхэд тохиромжтой эвхэгддэг тавцан',
-          category: 'Суниалтын төхөөрөмж',
+          category: bySlug.gear.name,
+          categoryId: bySlug.gear.id,
           price: 69000,
           rating: 4.7,
           reviews: 86,
@@ -291,7 +302,8 @@ async function seed() {
         {
           title: 'Резин эсэргүүцлийн багц',
           description: 'Хүч нэмэх резины багц',
-          category: 'Дагалдах хэрэгсэл',
+          category: bySlug.accessory.name,
+          categoryId: bySlug.accessory.id,
           price: 49000,
           rating: 4.6,
           reviews: 53,
@@ -301,7 +313,8 @@ async function seed() {
         {
           title: 'Дасгалын дэвсгэр',
           description: 'Тав тухтай дасгалын дэвсгэр',
-          category: 'Хувцас',
+          category: bySlug.wear.name,
+          categoryId: bySlug.wear.id,
           price: 39000,
           rating: 4.5,
           reviews: 72,

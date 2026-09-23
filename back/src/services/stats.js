@@ -205,14 +205,27 @@ async function recordSession(models, user, payload) {
 
 const { withProductImages } = require('../utils/productImages');
 
+function formatProductCategory(category) {
+  return {
+    id: category.id,
+    name: category.name,
+    slug: category.slug,
+    icon: category.icon || 'category',
+    sortOrder: category.sortOrder || 0,
+  };
+}
+
 function formatProduct(product) {
   const json = withProductImages(product);
   const price = Number(json.price);
+  const cat = product.productCategory;
   return {
     ...json,
     price,
     formattedPrice: `₮ ${price.toLocaleString('en-US')}`,
     rating: Number(json.rating || 0),
+    categoryId: json.categoryId || cat?.id || null,
+    category: cat?.name || json.category || '',
   };
 }
 
@@ -223,4 +236,5 @@ module.exports = {
   applyFreshCounters,
   recordSession,
   formatProduct,
+  formatProductCategory,
 };

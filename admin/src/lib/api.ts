@@ -150,6 +150,24 @@ export const api = {
   deleteProduct: (id: string) =>
     request<{ message: string }>(`/products/${id}`, { method: 'DELETE' }),
 
+  getProductCategories: () =>
+    request<{ categories: ProductCategory[] }>('/product-categories'),
+
+  createProductCategory: (data: Partial<ProductCategory>) =>
+    request<{ category: ProductCategory }>('/product-categories', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateProductCategory: (id: string, data: Partial<ProductCategory>) =>
+    request<{ category: ProductCategory }>(`/product-categories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  deleteProductCategory: (id: string) =>
+    request<{ message: string }>(`/product-categories/${id}`, { method: 'DELETE' }),
+
   getExercises: () => request<{ exercises: Exercise[] }>('/exercises'),
 
   createExercise: (data: Partial<Exercise>) =>
@@ -304,11 +322,21 @@ export interface Challenge {
   isActive: boolean;
 }
 
+export interface ProductCategory {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string;
+  sortOrder: number;
+  isPublished: boolean;
+}
+
 export interface Product {
   id: string;
   title: string;
   description: string | null;
   category?: string;
+  categoryId?: string | null;
   rating?: number | string;
   reviews?: number;
   price: number | string;

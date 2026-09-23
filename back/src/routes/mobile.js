@@ -4,6 +4,7 @@ const {
   User,
   Exercise,
   Product,
+  ProductCategory,
   Challenge,
   Badge,
   WorkoutSession,
@@ -13,7 +14,14 @@ const {
   OrderItem,
 } = require('../models');
 const { authenticateUser, optionalUser, signUserToken } = require('../middleware/auth');
-const { recordSession, formatProduct, startOfDay, applyFreshCounters, dayKey } = require('../services/stats');
+const {
+  recordSession,
+  formatProduct,
+  formatProductCategory,
+  startOfDay,
+  applyFreshCounters,
+  dayKey,
+} = require('../services/stats');
 const { getQpayPublic } = require('../services/settings');
 const { createQpayInvoice, checkQpayPayment } = require('../services/qpay');
 const { verifyGoogleIdToken, isGoogleAuthConfigured } = require('../utils/googleAuth');
@@ -97,12 +105,17 @@ async function upsertGoogleUser(payload) {
 }
 
 async function catalogPayload(currentUser) {
-  const [exercises, products, challenges, badges, leaders, payment] = await Promise.all([
+  const [exercises, products, productCategories, challenges, badges, leaders, payment] = await Promise.all([
     Exercise.findAll({
       where: { isPublished: true },
       order: [['sortOrder', 'ASC'], ['createdAt', 'ASC']],
     }),
     Product.findAll({
+      where: { isPublished: true },
+      include: [{ model: ProductCategory, as: 'productCategory', required: false }],
+      order: [['sortOrder', 'ASC'], ['createdAt', 'ASC']],
+    }),
+    ProductCategory.findAll({
       where: { isPublished: true },
       order: [['sortOrder', 'ASC'], ['createdAt', 'ASC']],
     }),
@@ -121,6 +134,7 @@ async function catalogPayload(currentUser) {
   return {
     exercises: exercises.map(withExerciseImages),
     products: products.map(formatProduct),
+    productCategories: productCategories.map(formatProductCategory),
     challenges,
     badges,
     leaderboard: leaders,

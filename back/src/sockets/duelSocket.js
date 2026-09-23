@@ -6,6 +6,10 @@ function duelRoomId(publicIdA, publicIdB) {
   return `duel:${ids[0]}:${ids[1]}`;
 }
 
+function userRoom(publicId) {
+  return `user:${publicId}`;
+}
+
 function attachDuelSocket(io) {
   io.use(async (socket, next) => {
     try {
@@ -32,6 +36,8 @@ function attachDuelSocket(io) {
     const me = socket.user;
     let activeRoom = null;
 
+    socket.join(userRoom(me.publicId));
+
     const peerPayload = () => ({
       publicId: me.publicId,
       displayName: me.displayName || 'Хэрэглэгч',
@@ -39,13 +45,7 @@ function attachDuelSocket(io) {
       todayPushUps: me.todayPushUps || 0,
     });
 
-    socket.on('duel:join', ({ opponentPublicId }) => {
-      const opponentId = Number(opponentPublicId);
-      if (!Number.isFinite(opponentId) || opponentId <= 0 || opponentId === me.publicId) {
-        socket.emit('duel:error', { message: 'Буруу ID' });
-        return;
-      }
-
+    const joinDuelRoom = (opponentId) => {
       const roomId = duelRoomId(me.publicId, opponentId);
       if (activeRoom && activeRoom !== roomId) {
         socket.leave(activeRoom);
@@ -65,6 +65,52 @@ function attachDuelSocket(io) {
       });
 
       socket.to(roomId).emit('duel:peer-joined', peerPayload());
+      return { roomId, peerPresent };
+    };
+
+    socket.on('duel:invite', ({ opponentPublicId }) => {
+      const opponentId = Number(opponentPublicId);
+      if (!Number.isFinite(opponentId) || opponentId <= 0 || opponentId === me.publicId) {
+        socket.emit('duel:error', { message: 'Буруу ID' });
+        return;
+      }
+
+      const targetRoom = userRoom(opponentId);
+      const online = (io.sockets.adapter.rooms.get(targetRoom)?.size ?? 0) > 0;
+
+      if (!online) {
+        socket.emit('duel:invite-result', { ok: false, reason: 'offline' });
+        return;
+      }
+
+      io.to(targetRoom).emit('duel:invite', { from: peerPayload() });
+      socket.emit('duel:invite-result', { ok: true, opponentPublicId: opponentId });
+    });
+
+    socket.on('duel:accept', ({ inviterPublicId }) => {
+      const inviterId = Number(inviterPublicId);
+      if (!Number.isFinite(inviterId) || inviterId <= 0 || inviterId === me.publicId) {
+        socket.emit('duel:error', { message: 'Буруу ID' });
+        return;
+      }
+
+      joinDuelRoom(inviterId);
+      io.to(userRoom(inviterId)).emit('duel:accepted', peerPayload());
+    });
+
+    socket.on('duel:decline', ({ inviterPublicId }) => {
+      const inviterId = Number(inviterPublicId);
+      if (!Number.isFinite(inviterId) || inviterId <= 0) return;
+      io.to(userRoom(inviterId)).emit('duel:declined', { publicId: me.publicId });
+    });
+
+    socket.on('duel:join', ({ opponentPublicId }) => {
+      const opponentId = Number(opponentPublicId);
+      if (!Number.isFinite(opponentId) || opponentId <= 0 || opponentId === me.publicId) {
+        socket.emit('duel:error', { message: 'Буруу ID' });
+        return;
+      }
+      joinDuelRoom(opponentId);
     });
 
     const relay = (event) => {

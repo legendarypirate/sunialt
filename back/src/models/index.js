@@ -4,6 +4,7 @@ const User = require('./User');
 const Workout = require('./Workout');
 const Challenge = require('./Challenge');
 const Product = require('./Product');
+const ProductCategory = require('./ProductCategory');
 const Exercise = require('./Exercise');
 const WorkoutSession = require('./WorkoutSession');
 const Badge = require('./Badge');
@@ -40,6 +41,8 @@ Order.hasMany(OrderItem, { foreignKey: 'orderId', as: 'items' });
 OrderItem.belongsTo(Order, { foreignKey: 'orderId', as: 'order' });
 OrderItem.belongsTo(Product, { foreignKey: 'productId', as: 'product' });
 Product.hasMany(OrderItem, { foreignKey: 'productId', as: 'orderItems' });
+ProductCategory.hasMany(Product, { foreignKey: 'categoryId', as: 'products' });
+Product.belongsTo(ProductCategory, { foreignKey: 'categoryId', as: 'productCategory' });
 
 module.exports = {
   sequelize,
@@ -48,6 +51,7 @@ module.exports = {
   Workout,
   Challenge,
   Product,
+  ProductCategory,
   Exercise,
   WorkoutSession,
   Badge,
