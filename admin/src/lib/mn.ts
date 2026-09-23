@@ -26,6 +26,7 @@ export const mn = {
   duels: 'Тулаан',
   orders: 'Захиалга',
   settings: 'Тохиргоо',
+  notifications: 'Push мэдэгдэл',
   qpay: 'QPay',
   qpayEnabled: 'QPay идэвхжүүлэх',
   qpayHint: 'Унтраавал хэрэглэгч апп дээр QPay-ээр төлж чадахгүй.',

@@ -12,6 +12,7 @@ const {
   Duel,
   Order,
   OrderItem,
+  DeviceToken,
 } = require('../models');
 const { authenticateUser, optionalUser, signUserToken } = require('../middleware/auth');
 const {
@@ -810,6 +811,60 @@ router.post('/orders/:id/qpay/check', authenticateUser, async (req, res) => {
       paid: order.paymentStatus === 'paid',
       order,
     });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.post('/device-token', authenticateUser, async (req, res) => {
+  try {
+    const token = typeof req.body.token === 'string' ? req.body.token.trim() : '';
+    const platform =
+      typeof req.body.platform === 'string' ? req.body.platform.trim() : 'unknown';
+
+    if (!token) {
+      return res.status(400).json({ error: 'FCM token шаардлагатай' });
+    }
+
+    const existing = await DeviceToken.findOne({ where: { token } });
+    if (existing && existing.userId !== req.user.id) {
+      await existing.update({ userId: req.user.id, platform });
+    } else if (existing) {
+      await existing.update({ platform });
+    } else {
+      await DeviceToken.create({
+        userId: req.user.id,
+        token,
+        platform,
+      });
+    }
+
+    console.log(
+      `[FCM] device token saved user=${req.user.id} platform=${platform} suffix=...${token.slice(-8)}`
+    );
+
+    res.json({
+      saved: true,
+      platform,
+      tokenSuffix: token.slice(-8),
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.delete('/device-token', authenticateUser, async (req, res) => {
+  try {
+    const token = typeof req.body.token === 'string' ? req.body.token.trim() : '';
+    if (!token) {
+      return res.status(400).json({ error: 'FCM token шаардлагатай' });
+    }
+
+    await DeviceToken.destroy({
+      where: { userId: req.user.id, token },
+    });
+
+    res.json({ removed: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

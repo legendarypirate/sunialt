@@ -231,6 +231,15 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+
+  getNotificationStats: () =>
+    request<{ stats: PushNotificationStats }>('/notifications/stats'),
+
+  sendNotification: (payload: SendPushNotificationPayload) =>
+    request<SendPushNotificationResult>('/notifications/send', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 };
 
 export interface Admin {
@@ -402,6 +411,51 @@ export interface Order {
   createdAt: string;
   user?: { id: string; displayName: string | null; email: string };
   items?: OrderItem[];
+}
+
+export type PushNotificationAudience = 'all' | 'free' | 'pro';
+
+export interface PushAudienceCount {
+  users: number;
+  devices: number;
+}
+
+export interface PushNotificationStats {
+  fcmConfigured: boolean;
+  fcmInitError?: string | null;
+  credentialsPath?: string | null;
+  apnsTopic?: string;
+  registeredDevices: number;
+  usersWithTokens: number;
+  iosDevices: number;
+  androidDevices: number;
+  audienceCounts: Record<PushNotificationAudience, PushAudienceCount>;
+  devices: Array<{
+    userId: string;
+    userEmail: string | null;
+    userName: string | null;
+    platform: string;
+    tokenSuffix: string;
+    updatedAt: string;
+  }>;
+}
+
+export interface SendPushNotificationPayload {
+  title: string;
+  body: string;
+  audience?: PushNotificationAudience;
+  userId?: string;
+  data?: Record<string, string>;
+}
+
+export interface SendPushNotificationResult {
+  sent: number;
+  failed: number;
+  recipientCount: number;
+  tokenCount: number;
+  fcmConfigured: boolean;
+  message?: string;
+  errors?: Array<{ platform: string; tokenSuffix: string; code: string; message: string }>;
 }
 
 export interface PaymentSettings {

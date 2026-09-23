@@ -9,6 +9,7 @@ const { migrate: migrateProductImages } = require('./scripts/migrateProductImage
 const { migrate: migrateExerciseProfileCover } = require('./scripts/migrateExerciseProfileCover');
 const { migrate: migrateUserBodyProfile } = require('./scripts/migrateUserBodyProfile');
 const { attachDuelSocket } = require('./sockets/duelSocket');
+const { initFirebaseAdmin } = require('./services/fcm');
 
 const PORT = process.env.PORT || 3071;
 
@@ -25,6 +26,7 @@ async function start() {
     console.log('Database synced');
 
     await ensureAdmin();
+    initFirebaseAdmin();
 
     const server = http.createServer(app);
     const io = new Server(server, {

@@ -17,6 +17,7 @@ const orderRoutes = require('./routes/orders');
 const settingsRoutes = require('./routes/settings');
 const mobileRoutes = require('./routes/mobile');
 const uploadRoutes = require('./routes/uploads');
+const notificationRoutes = require('./routes/notifications');
 
 const app = express();
 
@@ -55,6 +56,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/mobile', mobileRoutes);
 app.use('/api/uploads', uploadRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ error: 'Not found' });

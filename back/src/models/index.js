@@ -14,8 +14,11 @@ const Duel = require('./Duel');
 const Order = require('./Order');
 const OrderItem = require('./OrderItem');
 const Setting = require('./Setting');
+const DeviceToken = require('./DeviceToken');
 
 User.hasMany(WorkoutSession, { foreignKey: 'userId', as: 'sessions' });
+User.hasMany(DeviceToken, { foreignKey: 'userId', as: 'deviceTokens', onDelete: 'CASCADE' });
+DeviceToken.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 WorkoutSession.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 WorkoutSession.belongsTo(Exercise, { foreignKey: 'exerciseId', as: 'exercise' });
 WorkoutSession.belongsTo(Challenge, { foreignKey: 'challengeId', as: 'challenge' });
@@ -61,4 +64,5 @@ module.exports = {
   Order,
   OrderItem,
   Setting,
+  DeviceToken,
 };
