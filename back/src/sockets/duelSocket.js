@@ -154,15 +154,17 @@ function attachDuelSocket(io) {
       const state = roomState.get(roomId);
       if (state) {
         state.ready.delete(me.publicId);
-        if (state.active) {
-          endDuel(io, roomId);
-        } else {
-          emitReadyUpdate(io, roomId);
-        }
       }
       socket.to(roomId).emit('duel:peer-left', { publicId: me.publicId });
       socket.leave(roomId);
       activeRoom = null;
+
+      const peersRemaining = io.sockets.adapter.rooms.get(roomId)?.size ?? 0;
+      if (state?.active && peersRemaining < 2) {
+        endDuel(io, roomId);
+      } else if (state && !state.active) {
+        emitReadyUpdate(io, roomId);
+      }
     };
 
     const joinDuelRoom = (opponentId) => {
@@ -261,8 +263,6 @@ function attachDuelSocket(io) {
 
     socket.on('duel:frame', (payload) => {
       if (!activeRoom) return;
-      const state = getRoomState(activeRoom);
-      if (!state.active) return;
       socket.to(activeRoom).emit('duel:peer-frame', payload);
     });
 

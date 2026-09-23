@@ -64,6 +64,36 @@ const Product = sequelize.define('Product', {
     defaultValue: 0,
     field: 'sort_order',
   },
+  tabDescription: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    field: 'tab_description',
+  },
+  tabFeatures: {
+    type: DataTypes.ARRAY(DataTypes.STRING),
+    defaultValue: [],
+    field: 'tab_features',
+  },
+  tabSizeInfo: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    field: 'tab_size_info',
+  },
+  showTabDescription: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+    field: 'show_tab_description',
+  },
+  showTabFeatures: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+    field: 'show_tab_features',
+  },
+  showTabSize: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+    field: 'show_tab_size',
+  },
 }, {
   tableName: 'products',
 });

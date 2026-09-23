@@ -226,6 +226,12 @@ function formatProduct(product) {
     rating: Number(json.rating || 0),
     categoryId: json.categoryId || cat?.id || null,
     category: cat?.name || json.category || '',
+    tabDescription: json.tabDescription || null,
+    tabFeatures: json.tabFeatures || [],
+    tabSizeInfo: json.tabSizeInfo || null,
+    showTabDescription: json.showTabDescription !== false,
+    showTabFeatures: json.showTabFeatures !== false,
+    showTabSize: json.showTabSize !== false,
   };
 }
 

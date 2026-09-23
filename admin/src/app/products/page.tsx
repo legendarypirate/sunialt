@@ -48,6 +48,12 @@ type ProductForm = {
   sortOrder: number;
   isPublished: boolean;
   imageUrls: string[];
+  tabDescription: string;
+  tabFeaturesText: string;
+  tabSizeInfo: string;
+  showTabDescription: boolean;
+  showTabFeatures: boolean;
+  showTabSize: boolean;
 };
 
 const emptyForm: ProductForm = {
@@ -61,7 +67,24 @@ const emptyForm: ProductForm = {
   sortOrder: 0,
   isPublished: true,
   imageUrls: [],
+  tabDescription: '',
+  tabFeaturesText: '',
+  tabSizeInfo: '',
+  showTabDescription: true,
+  showTabFeatures: true,
+  showTabSize: true,
 };
+
+function parseFeatures(text: string) {
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function featuresToText(features?: string[]) {
+  return (features || []).join('\n');
+}
 
 function formatPrice(price: number | string) {
   return `${Number(price).toLocaleString()}₮`;
@@ -115,6 +138,12 @@ export default function ProductsPage() {
       sortOrder: p.sortOrder,
       isPublished: p.isPublished,
       imageUrls: productImages(p),
+      tabDescription: p.tabDescription || '',
+      tabFeaturesText: featuresToText(p.tabFeatures),
+      tabSizeInfo: p.tabSizeInfo || '',
+      showTabDescription: p.showTabDescription !== false,
+      showTabFeatures: p.showTabFeatures !== false,
+      showTabSize: p.showTabSize !== false,
     });
     setOpen(true);
   };
@@ -135,6 +164,12 @@ export default function ProductsPage() {
         isPublished: form.isPublished,
         imageUrls,
         imageUrl: imageUrls[0] || null,
+        tabDescription: form.tabDescription.trim() || null,
+        tabFeatures: parseFeatures(form.tabFeaturesText),
+        tabSizeInfo: form.tabSizeInfo.trim() || null,
+        showTabDescription: form.showTabDescription,
+        showTabFeatures: form.showTabFeatures,
+        showTabSize: form.showTabSize,
       };
 
       if (editing) {
@@ -227,6 +262,49 @@ export default function ProductsPage() {
               <div className="flex items-center gap-2">
                 <Switch checked={form.isPublished} onCheckedChange={(v) => setForm({ ...form, isPublished: v })} />
                 <Label>{mn.publish}</Label>
+              </div>
+
+              <div className="space-y-3 rounded-lg border p-4">
+                <div className="font-medium">Аpp таб (бүтээгдэхүүний дэлгэрэнгүй)</div>
+
+                <div className="flex items-center gap-2">
+                  <Switch checked={form.showTabDescription} onCheckedChange={(v) => setForm({ ...form, showTabDescription: v })} />
+                  <Label>Тайлбар таб харуулах</Label>
+                </div>
+                <div className="space-y-2">
+                  <Label>Тайлбар агуулга</Label>
+                  <Textarea
+                    value={form.tabDescription}
+                    onChange={(e) => setForm({ ...form, tabDescription: e.target.value })}
+                    placeholder="Хоосон бол ерөнхий тайлбар ашиглана"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Switch checked={form.showTabFeatures} onCheckedChange={(v) => setForm({ ...form, showTabFeatures: v })} />
+                  <Label>Онцлог таб харуулах</Label>
+                </div>
+                <div className="space-y-2">
+                  <Label>Онцлог (мөр бүрт нэг)</Label>
+                  <Textarea
+                    value={form.tabFeaturesText}
+                    onChange={(e) => setForm({ ...form, tabFeaturesText: e.target.value })}
+                    placeholder="Жишээ:&#10;Гулсдаггүй резин суурь&#10;Хөнгөн, авч явахад хялбар"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Switch checked={form.showTabSize} onCheckedChange={(v) => setForm({ ...form, showTabSize: v })} />
+                  <Label>Хэмжээ таб харуулах</Label>
+                </div>
+                <div className="space-y-2">
+                  <Label>Хэмжээний мэдээлэл</Label>
+                  <Textarea
+                    value={form.tabSizeInfo}
+                    onChange={(e) => setForm({ ...form, tabSizeInfo: e.target.value })}
+                    placeholder="Жишээ:&#10;Өргөн: 22 см&#10;Урт: 18 см"
+                  />
+                </div>
               </div>
             </div>
           </div>

@@ -346,6 +346,12 @@ export interface Product {
   stock: number;
   isPublished: boolean;
   sortOrder: number;
+  tabDescription?: string | null;
+  tabFeatures?: string[];
+  tabSizeInfo?: string | null;
+  showTabDescription?: boolean;
+  showTabFeatures?: boolean;
+  showTabSize?: boolean;
 }
 
 export interface Badge {
