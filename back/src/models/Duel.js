@@ -12,6 +12,11 @@ const Duel = sequelize.define('Duel', {
     allowNull: false,
     field: 'user_id',
   },
+  opponentId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'opponent_id',
+  },
   opponentName: {
     type: DataTypes.STRING,
     defaultValue: 'Шууд',

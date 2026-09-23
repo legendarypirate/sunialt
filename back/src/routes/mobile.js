@@ -388,13 +388,79 @@ router.post('/sessions', authenticateUser, async (req, res) => {
   }
 });
 
+router.get('/users/lookup', authenticateUser, async (req, res) => {
+  try {
+    const rawId = String(req.query.id || '').trim().toLowerCase();
+    if (!rawId) {
+      return res.status(400).json({ error: 'ID шаардлагатай' });
+    }
+
+    let user = null;
+    if (rawId.length >= 32) {
+      user = await User.findOne({
+        where: { id: rawId, isActive: true },
+        attributes: ['id', 'displayName', 'photoUrl', 'todayPushUps', 'streakDays'],
+      });
+    } else {
+      user = await User.findOne({
+        where: {
+          id: { [Op.iLike]: `${rawId}%` },
+          isActive: true,
+        },
+        attributes: ['id', 'displayName', 'photoUrl', 'todayPushUps', 'streakDays'],
+      });
+    }
+
+    if (!user) {
+      return res.status(404).json({ error: 'Хэрэглэгч олдсонгүй' });
+    }
+    if (user.id === req.user.id) {
+      return res.status(400).json({ error: 'Өөртөө тулаан зарлах боломжгүй' });
+    }
+
+    res.json({
+      user: {
+        id: user.id,
+        displayName: user.displayName || 'Хэрэглэгч',
+        photoUrl: user.photoUrl,
+        todayPushUps: user.todayPushUps || 0,
+        streakDays: user.streakDays || 0,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post('/duels', authenticateUser, async (req, res) => {
   try {
+    const opponentId = String(req.body.opponentId || '').trim() || null;
+    let opponentName = String(req.body.opponentName || '').trim() || 'Шууд';
+    let opponentScore = Number(req.body.opponentScore) || 28;
+
+    if (opponentId) {
+      const opponent = await User.findOne({
+        where: { id: opponentId, isActive: true },
+        attributes: ['id', 'displayName', 'todayPushUps'],
+      });
+      if (!opponent) {
+        return res.status(404).json({ error: 'Сөрөгч олдсонгүй' });
+      }
+      if (opponent.id === req.user.id) {
+        return res.status(400).json({ error: 'Өөртөө тулаан зарлах боломжгүй' });
+      }
+      opponentName = opponent.displayName || opponentName;
+      if (!req.body.opponentScore) {
+        opponentScore = opponent.todayPushUps || 0;
+      }
+    }
+
     const duel = await Duel.create({
       userId: req.user.id,
-      opponentName: req.body.opponentName || 'Шууд',
+      opponentId,
+      opponentName,
       userScore: Number(req.body.userScore) || 0,
-      opponentScore: Number(req.body.opponentScore) || 28,
+      opponentScore,
       status: 'finished',
     });
 
