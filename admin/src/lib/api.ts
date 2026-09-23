@@ -326,6 +326,7 @@ export interface Badge {
   title: string;
   subtitle: string | null;
   icon: string;
+  imageUrl: string | null;
   sortOrder: number;
   isPublished: boolean;
 }

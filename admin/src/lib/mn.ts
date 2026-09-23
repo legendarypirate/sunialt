@@ -156,6 +156,8 @@ export const mn = {
   newBadge: 'Шинэ тэмдэгт',
   key: 'Түлхүүр',
   icon: 'Дүрс',
+  badgeImage: 'Тэмдэгтийн зураг',
+  badgeImageHint: 'Хэрэглэгчийн профайл дээр харагдана.',
   deleteBadge: 'Энэ тэмдэгтийг устгах уу?',
 
   user: 'Хэрэглэгч',

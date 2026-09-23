@@ -24,6 +24,11 @@ const Badge = sequelize.define('Badge', {
     type: DataTypes.STRING,
     defaultValue: 'emoji_events',
   },
+  imageUrl: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'image_url',
+  },
   sortOrder: {
     type: DataTypes.INTEGER,
     defaultValue: 0,
