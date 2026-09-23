@@ -22,7 +22,7 @@ const {
   applyFreshCounters,
   dayKey,
 } = require('../services/stats');
-const { getQpayPublic } = require('../services/settings');
+const { getQpayPublic, getSetting } = require('../services/settings');
 const { createQpayInvoice, checkQpayPayment } = require('../services/qpay');
 const { verifyGoogleIdToken, isGoogleAuthConfigured } = require('../utils/googleAuth');
 const { withExerciseImages } = require('../utils/exerciseImages');
@@ -676,6 +676,117 @@ router.post('/orders', authenticateUser, async (req, res) => {
     });
   } catch (err) {
     res.status(err.status || 400).json({ error: err.message });
+  }
+});
+
+const SUBSCRIPTION_ITEM_TITLE = '__subscription__';
+
+async function activateSubscription(user) {
+  const renews = new Date();
+  renews.setMonth(renews.getMonth() + 1);
+  await user.update({
+    isPlusSubscriber: true,
+    subscriptionPlan: 'Pro төлөвлөгөө',
+    subscriptionRenewsAt: renews.toISOString().slice(0, 10),
+  });
+}
+
+function isSubscriptionOrder(order) {
+  const items = order.items || [];
+  return items.some((item) => item.title === SUBSCRIPTION_ITEM_TITLE);
+}
+
+router.post('/subscription/checkout', authenticateUser, async (req, res) => {
+  try {
+    if (req.user.isPlusSubscriber) {
+      return res.status(400).json({ error: 'Premium already active' });
+    }
+
+    const payment = await getQpayPublic();
+    if (!payment.qpayEnabled) {
+      return res.status(400).json({ error: 'QPay is disabled' });
+    }
+
+    const price = Number(
+      await getSetting('subscription_price', process.env.SUBSCRIPTION_PRICE || '19900'),
+    );
+    if (!Number.isFinite(price) || price <= 0) {
+      return res.status(400).json({ error: 'Subscription price is not configured' });
+    }
+
+    const order = await Order.create({
+      userId: req.user.id,
+      status: 'pending',
+      total: price,
+      paymentMethod: 'qpay',
+      paymentStatus: 'unpaid',
+      phone: 'premium',
+      address: 'subscription',
+    });
+    await OrderItem.create({
+      orderId: order.id,
+      title: SUBSCRIPTION_ITEM_TITLE,
+      quantity: 1,
+      unitPrice: price,
+    });
+
+    const invoice = await createQpayInvoice({
+      amount: price,
+      orderId: order.id,
+      description: 'SUNIA Pro',
+    });
+    order.qpayInvoiceId = invoice.invoiceId;
+    order.qpayQrImage = invoice.qrImage;
+    order.qpayDemo = Boolean(invoice.demo);
+    await order.save();
+
+    const created = await Order.findByPk(order.id, { include: [{ model: OrderItem, as: 'items' }] });
+    res.status(201).json({
+      order: created,
+      qpay: {
+        enabled: true,
+        demo: invoice.demo,
+        invoiceId: invoice.invoiceId,
+        qrImage: invoice.qrImage,
+        qrText: invoice.qrText,
+        urls: invoice.urls || [],
+      },
+    });
+  } catch (err) {
+    res.status(err.status || 400).json({ error: err.message });
+  }
+});
+
+router.post('/subscription/:id/qpay/check', authenticateUser, async (req, res) => {
+  try {
+    const order = await Order.findByPk(req.params.id, { include: [{ model: OrderItem, as: 'items' }] });
+    if (!order || order.userId !== req.user.id) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    if (!isSubscriptionOrder(order)) {
+      return res.status(400).json({ error: 'Not a subscription order' });
+    }
+
+    const result = await checkQpayPayment(order.qpayInvoiceId, {
+      demo: order.qpayDemo,
+      confirm: Boolean(req.body.confirm),
+    });
+
+    if (result.paid) {
+      order.paymentStatus = 'paid';
+      order.status = 'paid';
+      await order.save();
+      await activateSubscription(req.user);
+      await req.user.reload();
+    }
+
+    res.json({
+      paid: order.paymentStatus === 'paid',
+      order,
+      user: userPayload(req.user),
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 
