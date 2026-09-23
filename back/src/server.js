@@ -33,6 +33,7 @@ async function start() {
         credentials: true,
       },
       path: '/socket.io',
+      maxHttpBufferSize: 5e6,
     });
     attachDuelSocket(io);
 
