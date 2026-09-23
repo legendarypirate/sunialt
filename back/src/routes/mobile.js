@@ -616,9 +616,6 @@ router.post('/orders', authenticateUser, async (req, res) => {
     }
 
     const payment = await getQpayPublic();
-    if (!payment.qpayEnabled) {
-      return res.status(400).json({ error: 'QPay is disabled' });
-    }
 
     const items = Array.isArray(req.body.items) ? req.body.items : [];
     if (items.length === 0) {
@@ -647,6 +644,28 @@ router.post('/orders', authenticateUser, async (req, res) => {
         unitPrice,
       };
     });
+
+    if (!payment.qpayEnabled) {
+      const order = await Order.create({
+        userId: req.user.id,
+        status: 'pending',
+        total,
+        phone,
+        address,
+        paymentMethod: 'manual',
+        paymentStatus: 'pending',
+      });
+      await OrderItem.bulkCreate(orderItems.map((item) => ({ ...item, orderId: order.id })));
+
+      const created = await Order.findByPk(order.id, {
+        include: [{ model: OrderItem, as: 'items' }],
+      });
+      return res.status(201).json({
+        order: created,
+        qpay: { enabled: false },
+        message: 'Захиалга амжилттай',
+      });
+    }
 
     const order = await Order.create({
       userId: req.user.id,
