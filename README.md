@@ -27,6 +27,9 @@ npm run db:seed   # Creates admin, mobile catalog, demo users
 npm run dev       # http://localhost:3071
 ```
 
+Public pages (no auth):
+- `http://localhost:3071/privacy` — Privacy policy (production: `https://suniagch.mn/privacy`)
+
 Default admin credentials (change in `.env`):
 - Email: `admin@sunia.mn`
 - Password: `admin123`

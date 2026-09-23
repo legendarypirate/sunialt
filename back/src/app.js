@@ -18,6 +18,7 @@ const settingsRoutes = require('./routes/settings');
 const mobileRoutes = require('./routes/mobile');
 const uploadRoutes = require('./routes/uploads');
 const notificationRoutes = require('./routes/notifications');
+const publicPagesRoutes = require('./routes/publicPages');
 
 const app = express();
 
@@ -39,6 +40,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', service: 'sunialt-backend' });
 });
+
+app.use(publicPagesRoutes);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
