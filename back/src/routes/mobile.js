@@ -24,7 +24,7 @@ const router = express.Router();
 function userPayload(user) {
   const json = user.toPublicJSON();
   return {
-    id: json.id,
+    id: json.publicId,
     email: json.email,
     displayName: json.displayName,
     tagline: json.tagline,
@@ -390,26 +390,15 @@ router.post('/sessions', authenticateUser, async (req, res) => {
 
 router.get('/users/lookup', authenticateUser, async (req, res) => {
   try {
-    const rawId = String(req.query.id || '').trim().toLowerCase();
-    if (!rawId) {
+    const publicId = clampInt(req.query.id, 1, 999999999);
+    if (publicId == null) {
       return res.status(400).json({ error: 'ID шаардлагатай' });
     }
 
-    let user = null;
-    if (rawId.length >= 32) {
-      user = await User.findOne({
-        where: { id: rawId, isActive: true },
-        attributes: ['id', 'displayName', 'photoUrl', 'todayPushUps', 'streakDays'],
-      });
-    } else {
-      user = await User.findOne({
-        where: {
-          id: { [Op.iLike]: `${rawId}%` },
-          isActive: true,
-        },
-        attributes: ['id', 'displayName', 'photoUrl', 'todayPushUps', 'streakDays'],
-      });
-    }
+    const user = await User.findOne({
+      where: { publicId, isActive: true },
+      attributes: ['id', 'publicId', 'displayName', 'photoUrl', 'todayPushUps', 'streakDays'],
+    });
 
     if (!user) {
       return res.status(404).json({ error: 'Хэрэглэгч олдсонгүй' });
@@ -420,7 +409,7 @@ router.get('/users/lookup', authenticateUser, async (req, res) => {
 
     res.json({
       user: {
-        id: user.id,
+        id: user.publicId,
         displayName: user.displayName || 'Хэрэглэгч',
         photoUrl: user.photoUrl,
         todayPushUps: user.todayPushUps || 0,
@@ -434,13 +423,14 @@ router.get('/users/lookup', authenticateUser, async (req, res) => {
 
 router.post('/duels', authenticateUser, async (req, res) => {
   try {
-    const opponentId = String(req.body.opponentId || '').trim() || null;
+    const opponentPublicId = clampInt(req.body.opponentId, 1, 999999999);
+    let opponentUuid = null;
     let opponentName = String(req.body.opponentName || '').trim() || 'Шууд';
     let opponentScore = Number(req.body.opponentScore) || 28;
 
-    if (opponentId) {
+    if (opponentPublicId != null) {
       const opponent = await User.findOne({
-        where: { id: opponentId, isActive: true },
+        where: { publicId: opponentPublicId, isActive: true },
         attributes: ['id', 'displayName', 'todayPushUps'],
       });
       if (!opponent) {
@@ -449,6 +439,7 @@ router.post('/duels', authenticateUser, async (req, res) => {
       if (opponent.id === req.user.id) {
         return res.status(400).json({ error: 'Өөртөө тулаан зарлах боломжгүй' });
       }
+      opponentUuid = opponent.id;
       opponentName = opponent.displayName || opponentName;
       if (!req.body.opponentScore) {
         opponentScore = opponent.todayPushUps || 0;
@@ -457,7 +448,7 @@ router.post('/duels', authenticateUser, async (req, res) => {
 
     const duel = await Duel.create({
       userId: req.user.id,
-      opponentId,
+      opponentId: opponentUuid,
       opponentName,
       userScore: Number(req.body.userScore) || 0,
       opponentScore,

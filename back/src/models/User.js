@@ -8,6 +8,12 @@ const User = sequelize.define('User', {
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true,
   },
+  publicId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    unique: true,
+    field: 'public_id',
+  },
   googleId: {
     type: DataTypes.STRING,
     unique: true,
