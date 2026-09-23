@@ -1,21 +1,25 @@
-const MONTHLY_BASELINE = Number(process.env.SUBSCRIPTION_PRICE_MONTHLY || process.env.SUBSCRIPTION_PRICE || 19900);
+const MONTHLY_BASELINE = Number(
+  process.env.SUBSCRIPTION_PRICE_MONTHLY ||
+    process.env.SUBSCRIPTION_PRICE ||
+    19900,
+);
 
 const PLAN_DEFS = [
   {
-    id: 'monthly',
-    label: '1 сар',
+    id: "monthly",
+    label: "1 сар",
     months: 1,
     price: MONTHLY_BASELINE,
   },
   {
-    id: 'quarterly',
-    label: '3 сар',
+    id: "quarterly",
+    label: "3 сар",
     months: 3,
-    price: Number(process.env.SUBSCRIPTION_PRICE_QUARTERLY || 29900),
+    price: Number(process.env.SUBSCRIPTION_PRICE_QUARTERLY || 39900),
   },
   {
-    id: 'yearly',
-    label: '1 жил',
+    id: "yearly",
+    label: "1 жил",
     months: 12,
     price: Number(process.env.SUBSCRIPTION_PRICE_YEARLY || 129900),
   },
@@ -24,7 +28,8 @@ const PLAN_DEFS = [
 function enrichPlan(def) {
   const fullPrice = MONTHLY_BASELINE * def.months;
   const savings = Math.max(0, fullPrice - def.price);
-  const savingsPercent = fullPrice > 0 ? Math.round((savings / fullPrice) * 100) : 0;
+  const savingsPercent =
+    fullPrice > 0 ? Math.round((savings / fullPrice) * 100) : 0;
   return {
     id: def.id,
     label: def.label,
@@ -51,7 +56,9 @@ function getSubscriptionPlan(planId) {
 }
 
 function resolvePlanId(raw) {
-  const id = String(raw || 'monthly').trim().toLowerCase();
+  const id = String(raw || "monthly")
+    .trim()
+    .toLowerCase();
   return PLAN_DEFS.some((item) => item.id === id) ? id : null;
 }
 
@@ -68,7 +75,9 @@ function formatDateOnly(date) {
 function buildUserSubscriptionFields(user, planId, { extend = true } = {}) {
   const plan = getSubscriptionPlan(planId);
   if (!plan) {
-    const err = new Error('Буруу төлөвлөгөө. Зөвшөөрөгдсөн: monthly, quarterly, yearly');
+    const err = new Error(
+      "Буруу төлөвлөгөө. Зөвшөөрөгдсөн: monthly, quarterly, yearly",
+    );
     err.status = 400;
     throw err;
   }
@@ -84,7 +93,9 @@ function buildUserSubscriptionFields(user, planId, { extend = true } = {}) {
     if (!Number.isNaN(currentEnd.getTime()) && currentEnd >= today) {
       endBase = currentEnd;
       if (user.subscriptionStartedAt) {
-        const existingStart = new Date(`${user.subscriptionStartedAt}T12:00:00`);
+        const existingStart = new Date(
+          `${user.subscriptionStartedAt}T12:00:00`,
+        );
         if (!Number.isNaN(existingStart.getTime())) {
           startedAt = existingStart;
         }
