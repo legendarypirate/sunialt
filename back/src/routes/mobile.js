@@ -271,7 +271,8 @@ router.get('/me', authenticateUser, async (req, res) => {
   }
 });
 
-const ALLOWED_DAILY_GOALS = [20, 50, 100, 200, 500];
+const MIN_DAILY_GOAL = 1;
+const MAX_DAILY_GOAL = 9999;
 
 router.patch('/me', authenticateUser, async (req, res) => {
   try {
@@ -280,10 +281,8 @@ router.patch('/me', authenticateUser, async (req, res) => {
       if (req.body[field] !== undefined) req.user[field] = req.body[field];
     });
     if (req.body.dailyGoalReps !== undefined) {
-      const goal = Number(req.body.dailyGoalReps);
-      if (!ALLOWED_DAILY_GOALS.includes(goal)) {
-        return res.status(400).json({ error: 'Invalid daily goal' });
-      }
+      const goal = clampInt(req.body.dailyGoalReps, MIN_DAILY_GOAL, MAX_DAILY_GOAL);
+      if (goal == null) return res.status(400).json({ error: 'Invalid daily goal' });
       req.user.dailyGoalReps = goal;
     }
     if (req.body.heightCm !== undefined) {
