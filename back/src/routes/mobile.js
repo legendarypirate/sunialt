@@ -27,6 +27,11 @@ const { getQpayPublic, getSetting } = require('../services/settings');
 const { createQpayInvoice, checkQpayPayment } = require('../services/qpay');
 const { verifyGoogleIdToken, isGoogleAuthConfigured } = require('../utils/googleAuth');
 const { withExerciseImages } = require('../utils/exerciseImages');
+const {
+  listUserNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+} = require('../services/userNotifications');
 
 const router = express.Router();
 
@@ -848,6 +853,37 @@ router.post('/device-token', authenticateUser, async (req, res) => {
       platform,
       tokenSuffix: token.slice(-8),
     });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.get('/notifications', authenticateUser, async (req, res) => {
+  try {
+    const limit = Number(req.query.limit) || 50;
+    const payload = await listUserNotifications(req.user.id, { limit });
+    res.json(payload);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.post('/notifications/read-all', authenticateUser, async (req, res) => {
+  try {
+    const updated = await markAllNotificationsRead(req.user.id);
+    res.json({ updated });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.post('/notifications/:id/read', authenticateUser, async (req, res) => {
+  try {
+    const notification = await markNotificationRead(req.user.id, req.params.id);
+    if (!notification) {
+      return res.status(404).json({ error: 'Мэдэгдэл олдсонгүй' });
+    }
+    res.json({ notification });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

@@ -78,7 +78,13 @@ async function processDailyGoalReminders(now = new Date(), { force = false } = {
     });
 
     if (result.sent > 0) {
-      await NotificationLog.create({ userId: user.id, reminderKey, title, body });
+      await NotificationLog.create({
+        userId: user.id,
+        reminderKey,
+        title,
+        body,
+        type: 'daily_goal_reminder',
+      });
       sent += 1;
     } else {
       failed += 1;

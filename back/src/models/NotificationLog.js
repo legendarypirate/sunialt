@@ -25,6 +25,16 @@ const NotificationLog = sequelize.define('NotificationLog', {
     type: DataTypes.STRING,
     allowNull: true,
   },
+  type: {
+    type: DataTypes.STRING(32),
+    allowNull: false,
+    defaultValue: 'system',
+  },
+  readAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'read_at',
+  },
 }, {
   tableName: 'notification_logs',
   indexes: [

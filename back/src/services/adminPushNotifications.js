@@ -1,6 +1,7 @@
 const { Op } = require('sequelize');
 const { User, DeviceToken } = require('../models');
 const { isFcmConfigured, sendToTokens, getFcmStatus } = require('./fcm');
+const { recordUserNotification } = require('./userNotifications');
 
 const AUDIENCE_KEYS = ['all', 'free', 'pro'];
 
@@ -119,7 +120,7 @@ async function sendAdminPush({ title, body, data = {}, audience = 'all', userId 
 
   const tokenRows = await DeviceToken.findAll({
     where: { userId: { [Op.in]: userIds } },
-    attributes: ['token', 'platform'],
+    attributes: ['userId', 'token', 'platform'],
   });
 
   const payloadData = {
@@ -129,16 +130,47 @@ async function sendAdminPush({ title, body, data = {}, audience = 'all', userId 
     ),
   };
 
-  const result = await sendToTokens(tokenRows, {
-    title: trimmedTitle,
-    body: trimmedBody,
-    data: payloadData,
-  });
+  const broadcastKey = Date.now().toString(36);
+  const tokensByUser = new Map();
+  for (const row of tokenRows) {
+    const list = tokensByUser.get(row.userId) || [];
+    list.push(row);
+    tokensByUser.set(row.userId, list);
+  }
+
+  let sent = 0;
+  let failed = 0;
+  const errors = [];
+
+  for (const userId of userIds) {
+    const userTokens = tokensByUser.get(userId) || [];
+    if (!userTokens.length) continue;
+
+    const result = await sendToTokens(userTokens, {
+      title: trimmedTitle,
+      body: trimmedBody,
+      data: payloadData,
+    });
+
+    sent += result.sent;
+    failed += result.failed;
+    if (result.errors?.length) errors.push(...result.errors);
+
+    if (result.sent > 0) {
+      await recordUserNotification({
+        userId,
+        reminderKey: `admin_${broadcastKey}_${userId}`,
+        title: trimmedTitle,
+        body: trimmedBody,
+        type: 'admin_broadcast',
+      });
+    }
+  }
 
   return {
-    sent: result.sent,
-    failed: result.failed,
-    errors: result.errors || [],
+    sent,
+    failed,
+    errors,
     recipientCount: userIds.length,
     tokenCount: tokenRows.length,
     fcmConfigured: true,
