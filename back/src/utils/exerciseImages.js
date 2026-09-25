@@ -1,5 +1,7 @@
+const { normalizeExerciseSetPlans, withSetPlans } = require('./exerciseSetPlans');
+
 function normalizeExerciseImages(input = {}) {
-  const body = { ...input };
+  const body = normalizeExerciseSetPlans({ ...input });
   const legacy = String(body.imageUrl || '').trim();
   const profile = String(body.profileImageUrl || '').trim();
   const cover = String(body.coverImageUrl || '').trim();
@@ -12,7 +14,7 @@ function normalizeExerciseImages(input = {}) {
 
 function withExerciseImages(exercise) {
   const json = exercise.toJSON ? exercise.toJSON() : { ...exercise };
-  return normalizeExerciseImages(json);
+  return withSetPlans(normalizeExerciseImages(json));
 }
 
 module.exports = {

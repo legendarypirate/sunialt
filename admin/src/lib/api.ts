@@ -316,9 +316,17 @@ export interface Exercise {
   standardPlan?: string | null;
   advancedPlan?: string | null;
   restNote?: string | null;
+  setPlans?: ExerciseSetPlan[];
   mistakes?: string[];
   sortOrder: number;
   isPublished: boolean;
+}
+
+export interface ExerciseSetPlan {
+  label: string;
+  sets: number;
+  reps: number;
+  restSeconds: number;
 }
 
 export interface WorkoutSession {

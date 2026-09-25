@@ -108,6 +108,12 @@ const Exercise = sequelize.define('Exercise', {
     field: 'rest_note',
     defaultValue: 'Амралт: сет хооронд 45–60 сек',
   },
+  setPlans: {
+    type: DataTypes.JSONB,
+    allowNull: false,
+    defaultValue: [],
+    field: 'set_plans',
+  },
   mistakes: {
     type: DataTypes.ARRAY(DataTypes.TEXT),
     defaultValue: [],

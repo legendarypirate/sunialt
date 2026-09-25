@@ -26,7 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { api, Exercise } from '@/lib/api';
+import { api, Exercise, ExerciseSetPlan } from '@/lib/api';
 import { adminDrawerWidthClass } from '@/lib/layout';
 import { mn } from '@/lib/mn';
 
@@ -44,10 +44,11 @@ const emptyForm = {
   muscleImageUrl: '',
   whyPoints: '',
   howPoints: '',
-  beginnerPlan: '3 × 8',
-  standardPlan: '3 × 12',
-  advancedPlan: '4 × 15',
-  restNote: 'Амралт: сет хооронд 45–60 сек',
+  setPlans: [
+    { label: 'Эхлэх', sets: 3, reps: 8, restSeconds: 60 },
+    { label: 'Стандарт', sets: 3, reps: 12, restSeconds: 60 },
+    { label: 'Хүчтэй', sets: 4, reps: 15, restSeconds: 90 },
+  ] as ExerciseSetPlan[],
   mistakes: '',
   targetReps: 15,
   sortOrder: 0,
@@ -100,10 +101,7 @@ export default function ExercisesPage() {
       muscleImageUrl: exercise.muscleImageUrl || '',
       whyPoints: lines(exercise.whyPoints),
       howPoints: lines(exercise.howPoints),
-      beginnerPlan: exercise.beginnerPlan || '3 × 8',
-      standardPlan: exercise.standardPlan || '3 × 12',
-      advancedPlan: exercise.advancedPlan || '4 × 15',
-      restNote: exercise.restNote || 'Амралт: сет хооронд 45–60 сек',
+      setPlans: exercise.setPlans?.length ? exercise.setPlans : emptyForm.setPlans,
       mistakes: lines(exercise.mistakes),
       targetReps: exercise.targetReps,
       sortOrder: exercise.sortOrder,
@@ -226,23 +224,56 @@ export default function ExercisesPage() {
                   <Label>{mn.howPoints}</Label>
                   <Textarea rows={5} value={form.howPoints} onChange={(e) => setForm({ ...form, howPoints: e.target.value })} />
                 </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-2">
-                    <Label>{mn.beginnerPlan}</Label>
-                    <Input value={form.beginnerPlan} onChange={(e) => setForm({ ...form, beginnerPlan: e.target.value })} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{mn.standardPlan}</Label>
-                    <Input value={form.standardPlan} onChange={(e) => setForm({ ...form, standardPlan: e.target.value })} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{mn.advancedPlan}</Label>
-                    <Input value={form.advancedPlan} onChange={(e) => setForm({ ...form, advancedPlan: e.target.value })} />
-                  </div>
-                </div>
                 <div className="space-y-2">
-                  <Label>{mn.restNote}</Label>
-                  <Input value={form.restNote} onChange={(e) => setForm({ ...form, restNote: e.target.value })} />
+                  <Label>{mn.setPlans}</Label>
+                  <p className="text-xs text-muted-foreground">{mn.setPlansHint}</p>
+                  {form.setPlans.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">{mn.noSetPlans}</p>
+                  ) : (
+                    <div className="grid grid-cols-[1fr_4.5rem_4.5rem_6rem_2.25rem] items-center gap-2 text-xs text-muted-foreground">
+                      <span>{mn.setPlanLabel}</span>
+                      <span>{mn.setPlanSets}</span>
+                      <span>{mn.setPlanReps}</span>
+                      <span>{mn.setPlanRest}</span>
+                      <span />
+                    </div>
+                  )}
+                  {form.setPlans.map((plan, index) => {
+                    const update = (patch: Partial<ExerciseSetPlan>) =>
+                      setForm({
+                        ...form,
+                        setPlans: form.setPlans.map((item, i) => (i === index ? { ...item, ...patch } : item)),
+                      });
+                    return (
+                      <div key={index} className="grid grid-cols-[1fr_4.5rem_4.5rem_6rem_2.25rem] items-center gap-2">
+                        <Input value={plan.label} onChange={(e) => update({ label: e.target.value })} />
+                        <Input type="number" min={1} value={plan.sets} onChange={(e) => update({ sets: Number(e.target.value) })} />
+                        <Input type="number" min={1} value={plan.reps} onChange={(e) => update({ reps: Number(e.target.value) })} />
+                        <Input type="number" min={0} value={plan.restSeconds} onChange={(e) => update({ restSeconds: Number(e.target.value) })} />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setForm({ ...form, setPlans: form.setPlans.filter((_, i) => i !== index) })}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setForm({
+                        ...form,
+                        setPlans: [...form.setPlans, { label: '', sets: 3, reps: 10, restSeconds: 60 }],
+                      })
+                    }
+                  >
+                    <Plus className="mr-2 h-4 w-4" /> {mn.addSetPlan}
+                  </Button>
                 </div>
                 <div className="space-y-2">
                   <Label>{mn.mistakes}</Label>

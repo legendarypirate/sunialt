@@ -15,6 +15,7 @@ const statements = [
   `ALTER TABLE exercises ADD COLUMN IF NOT EXISTS advanced_plan VARCHAR(255) DEFAULT '4 × 15'`,
   `ALTER TABLE exercises ADD COLUMN IF NOT EXISTS rest_note VARCHAR(255) DEFAULT 'Амралт: сет хооронд 45–60 сек'`,
   `ALTER TABLE exercises ADD COLUMN IF NOT EXISTS mistakes TEXT[] DEFAULT ARRAY[]::TEXT[]`,
+  `ALTER TABLE exercises ADD COLUMN IF NOT EXISTS set_plans JSONB NOT NULL DEFAULT '[]'::jsonb`,
 ];
 
 async function migrate() {
