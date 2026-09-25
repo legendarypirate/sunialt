@@ -6,6 +6,7 @@ const DEFAULT_GOOGLE_CLIENT_IDS = [
   '536553320418-4vifnpul3iqk22kb3c0l0f3qot691unt.apps.googleusercontent.com',
   '536553320418-e75lvofnha7nqlt122sq01u2cfahgut2.apps.googleusercontent.com',
   '536553320418-cgbu2tve552kol3193bfbottairinh7o.apps.googleusercontent.com',
+  '536553320418-fha1is6eujvpoebon4e64g4h6n1v6jld.apps.googleusercontent.com',
   '536553320418-117ftm66hsn75tcjnk1kudnonvbnv97r.apps.googleusercontent.com',
 ];
 

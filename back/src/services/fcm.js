@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const projectRoot = path.resolve(__dirname, '..', '..');
-const APNS_TOPIC = process.env.FCM_APNS_TOPIC || 'mn.push.uper';
+const APNS_TOPIC = process.env.FCM_APNS_TOPIC || 'com.gegee.delivery';
 
 let admin = null;
 let messaging = null;
