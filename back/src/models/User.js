@@ -20,6 +20,12 @@ const User = sequelize.define('User', {
     allowNull: true,
     field: 'google_id',
   },
+  appleId: {
+    type: DataTypes.STRING,
+    unique: true,
+    allowNull: true,
+    field: 'apple_id',
+  },
   email: {
     type: DataTypes.STRING,
     allowNull: false,

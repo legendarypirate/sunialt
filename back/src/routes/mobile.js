@@ -26,6 +26,7 @@ const {
 const { getQpayPublic, getSetting } = require('../services/settings');
 const { createQpayInvoice, checkQpayPayment } = require('../services/qpay');
 const { verifyGoogleIdToken, isGoogleAuthConfigured } = require('../utils/googleAuth');
+const { verifyAppleIdentityToken } = require('../utils/appleAuth');
 const { withExerciseImages } = require('../utils/exerciseImages');
 const {
   listUserNotifications,
@@ -57,7 +58,8 @@ function userPayload(user) {
     subscriptionStartedAt: json.subscriptionStartedAt,
     subscriptionRenewsAt: json.subscriptionRenewsAt,
     googleId: json.googleId || null,
-    authProvider: json.googleId ? 'google' : 'email',
+    appleId: json.appleId || null,
+    authProvider: json.appleId ? 'apple' : (json.googleId ? 'google' : 'email'),
     lastWorkoutAt: json.lastWorkoutAt || null,
     heightCm: json.heightCm ?? 175,
     weightKg: json.weightKg ?? 72,
@@ -105,6 +107,44 @@ async function upsertGoogleUser(payload) {
   if (!user.googleId && googleId) updates.googleId = googleId;
   if (!user.photoUrl && payload.picture) updates.photoUrl = payload.picture;
   if (!user.displayName && displayName) updates.displayName = displayName;
+  if (Object.keys(updates).length) {
+    await user.update(updates);
+  }
+  return user;
+}
+
+async function upsertAppleUser(payload, { displayName } = {}) {
+  const appleId = payload.sub;
+  if (!appleId) {
+    const err = new Error('Apple account has no user id');
+    err.status = 400;
+    throw err;
+  }
+
+  const email = String(payload.email || '').trim().toLowerCase();
+  const name = typeof displayName === 'string' ? displayName.trim().slice(0, 80) : '';
+  let user = await User.findOne({ where: { appleId } });
+  if (!user && email) {
+    user = await User.findOne({ where: { email } });
+  }
+
+  if (!user) {
+    if (!email) {
+      const err = new Error('Apple account has no email');
+      err.status = 400;
+      throw err;
+    }
+    return User.create({
+      email,
+      appleId,
+      displayName: name || email.split('@')[0],
+      password: null,
+    });
+  }
+
+  const updates = {};
+  if (!user.appleId) updates.appleId = appleId;
+  if (name && !user.displayName) updates.displayName = name;
   if (Object.keys(updates).length) {
     await user.update(updates);
   }
@@ -221,6 +261,32 @@ router.post('/auth/google', async (req, res) => {
 
     const payload = await verifyGoogleIdToken(idToken);
     const user = await upsertGoogleUser(payload);
+    if (!user.isActive) {
+      return res.status(401).json({ error: 'Account is inactive' });
+    }
+
+    await applyFreshCounters(user);
+    res.json({
+      token: signUserToken(user),
+      user: userPayload(user),
+    });
+  } catch (err) {
+    res.status(err.status || 400).json({ error: err.message });
+  }
+});
+
+router.post('/auth/apple', async (req, res) => {
+  try {
+    const { identityToken, nonce, displayName } = req.body;
+    if (!identityToken) {
+      return res.status(400).json({ error: 'Apple identityToken шаардлагатай' });
+    }
+    if (!nonce) {
+      return res.status(400).json({ error: 'Apple nonce шаардлагатай' });
+    }
+
+    const payload = await verifyAppleIdentityToken(identityToken, { rawNonce: nonce });
+    const user = await upsertAppleUser(payload, { displayName });
     if (!user.isActive) {
       return res.status(401).json({ error: 'Account is inactive' });
     }
