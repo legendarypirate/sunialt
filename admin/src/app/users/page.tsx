@@ -175,7 +175,6 @@ export default function UsersPage() {
                   <TableCell>{user.totalPushUps || 0}</TableCell>
                   <TableCell>
                     <Switch
-                      size="sm"
                       checked={user.isPlusSubscriber}
                       disabled={assigningId === user.id}
                       onCheckedChange={() => togglePlus(user)}
@@ -191,7 +190,7 @@ export default function UsersPage() {
                         }
                       }}
                     >
-                      <SelectTrigger className="h-7 text-xs">
+                      <SelectTrigger className="h-8 text-sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -209,7 +208,7 @@ export default function UsersPage() {
                     {user.isPlusSubscriber ? formatSubscriptionDate(user.subscriptionRenewsAt) : '—'}
                   </TableCell>
                   <TableCell>
-                    <Switch size="sm" checked={user.isActive} onCheckedChange={() => toggleActive(user)} />
+                    <Switch checked={user.isActive} onCheckedChange={() => toggleActive(user)} />
                   </TableCell>
                   <TableCell className="text-right">
                     <AdminTableActions onDelete={() => remove(user)} />

@@ -62,7 +62,7 @@ export function AdminTableSearch({
             if (event.key === 'Enter') onSearch();
           }}
           placeholder={placeholder}
-          className="h-8 border-0 bg-transparent pl-9 text-xs shadow-none focus-visible:ring-0"
+          className="h-8 border-0 bg-transparent pl-9 text-sm shadow-none focus-visible:ring-0"
         />
       </div>
       <Button type="button" size="sm" onClick={onSearch} className="min-w-20">
@@ -94,9 +94,9 @@ export function AdminTableActions({
           onClick={onEdit}
           aria-label={editLabel}
           title={editLabel}
-          className="size-6 rounded-md"
+          className="size-8"
         >
-          <Pencil className="size-3" />
+          <Pencil className="size-4" />
         </Button>
       )}
       {onDelete && (
@@ -107,9 +107,9 @@ export function AdminTableActions({
           onClick={onDelete}
           aria-label={deleteLabel}
           title={deleteLabel}
-          className="size-6 rounded-md"
+          className="size-8"
         >
-          <Trash2 className="size-3" />
+          <Trash2 className="size-4" />
         </Button>
       )}
     </div>
@@ -159,7 +159,7 @@ export function AdminTablePagination({
 
   return (
     <div className="flex flex-col gap-2 border-t bg-muted/20 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-xs text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         Бүгд {total} мэдээлэл, {first}–{last} дугаар / нийт {totalPages} хуудас
       </p>
       <div className="flex flex-wrap items-center gap-2">
@@ -167,7 +167,7 @@ export function AdminTablePagination({
           value={String(pageSize)}
           onValueChange={(value) => onPageSizeChange(Number(value))}
         >
-          <SelectTrigger className="h-8 w-20 text-xs" aria-label="Нэг хуудсанд харуулах тоо">
+          <SelectTrigger className="h-8 w-20 text-sm" aria-label="Нэг хуудсанд харуулах тоо">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -200,7 +200,7 @@ export function AdminTablePagination({
                 aria-current={item === page ? 'page' : undefined}
                 aria-label={`${item}-р хуудас`}
                 onClick={() => onPageChange(item)}
-                className="size-8 text-xs"
+                className="size-8 text-sm"
               >
                 {item}
               </Button>
