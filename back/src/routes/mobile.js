@@ -502,39 +502,51 @@ router.get('/friends', authenticateUser, async (req, res) => {
   try {
     await applyFreshCounters(req.user);
     const onlineSince = new Date(Date.now() - ONLINE_WINDOW_MS);
-    const users = await User.findAll({
+
+    // Fetch recent duels where req.user participated
+    const recentDuels = await Duel.findAll({
       where: {
-        isActive: true,
-        id: { [Op.ne]: req.user.id },
-        publicId: { [Op.ne]: null },
+        [Op.or]: [
+          { userId: req.user.id },
+          { opponentId: req.user.id },
+        ],
       },
-      attributes: [
-        'publicId',
-        'displayName',
-        'photoUrl',
-        'todayPushUps',
-        'streakDays',
-        'lastWorkoutAt',
+      include: [
+        { model: User, as: 'user', attributes: ['id', 'publicId', 'displayName', 'photoUrl', 'todayPushUps', 'streakDays', 'lastWorkoutAt'] },
+        { model: User, as: 'opponent', attributes: ['id', 'publicId', 'displayName', 'photoUrl', 'todayPushUps', 'streakDays', 'lastWorkoutAt'], required: false },
       ],
-      order: [['todayPushUps', 'DESC'], ['displayName', 'ASC']],
+      order: [['createdAt', 'DESC']],
       limit: 50,
     });
 
-    const friends = users
-      .map((user) => ({
-        id: user.publicId,
-        name: user.displayName || 'Хэрэглэгч',
-        photoUrl: user.photoUrl,
-        todayPushUps: user.todayPushUps || 0,
-        streakDays: user.streakDays || 0,
-        isOnline: Boolean(user.lastWorkoutAt && user.lastWorkoutAt >= onlineSince),
-        lastSeen: formatLastSeen(user.lastWorkoutAt),
-        inMatch: false,
-      }))
-      .sort((a, b) => {
-        if (a.isOnline !== b.isOnline) return a.isOnline ? -1 : 1;
-        return b.todayPushUps - a.todayPushUps;
-      });
+    const seenIds = new Set();
+    const friendsUsers = [];
+
+    for (const duel of recentDuels) {
+      let partner = null;
+      if (duel.userId === req.user.id && duel.opponent) {
+        partner = duel.opponent;
+      } else if (duel.opponentId === req.user.id && duel.user) {
+        partner = duel.user;
+      }
+
+      if (partner && !seenIds.has(partner.id)) {
+        seenIds.add(partner.id);
+        friendsUsers.push(partner);
+        if (friendsUsers.length >= 3) break; // Always 3 latest duel partners
+      }
+    }
+
+    const friends = friendsUsers.map((user) => ({
+      id: user.publicId,
+      name: user.displayName || 'Хэрэглэгч',
+      photoUrl: user.photoUrl,
+      todayPushUps: user.todayPushUps || 0,
+      streakDays: user.streakDays || 0,
+      isOnline: Boolean(user.lastWorkoutAt && user.lastWorkoutAt >= onlineSince),
+      lastSeen: formatLastSeen(user.lastWorkoutAt),
+      inMatch: false,
+    }));
 
     res.json({ friends });
   } catch (err) {
