@@ -133,6 +133,27 @@ function resetRoomOnEmpty(roomId) {
 
 async function pruneCodeRooms() {
   await WorkoutRoom.destroy({ where: { expiresAt: { [Op.lte]: new Date() } } });
+
+  // Older deployments allowed several rooms per host. Keep only the newest
+  // one so the application-level rule is also applied to existing data.
+  const rooms = await WorkoutRoom.findAll({
+    attributes: ['id', 'hostUserId', 'code'],
+    order: [['createdAt', 'DESC']],
+  });
+  const seenHosts = new Set();
+  const duplicateIds = [];
+  for (const room of rooms) {
+    if (seenHosts.has(room.hostUserId)) {
+      duplicateIds.push(room.id);
+      codeRoomMembers.delete(room.code);
+    } else {
+      seenHosts.add(room.hostUserId);
+    }
+  }
+  if (duplicateIds.length > 0) {
+    await WorkoutRoom.destroy({ where: { id: { [Op.in]: duplicateIds } } });
+  }
+
   for (const [code, members] of codeRoomMembers) {
     if (members.size === 0) codeRoomMembers.delete(code);
   }
@@ -453,15 +474,26 @@ function attachDuelSocket(io) {
         : 2;
 
       try {
-        const code = await generateRoomCode();
         const expiresAt = new Date(Date.now() + ROOM_LIFETIME_MS);
-        await WorkoutRoom.create({
-          code,
-          hostUserId: me.id,
-          type: roomType,
-          maxParticipants,
-          expiresAt,
-        });
+        await pruneCodeRooms();
+        let room = await WorkoutRoom.findOne({ where: { hostUserId: me.id } });
+        if (room) {
+          await room.update({
+            type: roomType,
+            maxParticipants,
+            expiresAt,
+          });
+        } else {
+          const code = await generateRoomCode();
+          room = await WorkoutRoom.create({
+            code,
+            hostUserId: me.id,
+            type: roomType,
+            maxParticipants,
+            expiresAt,
+          });
+        }
+        const code = room.code;
         socket.emit('room:created', {
           code,
           type: roomType,

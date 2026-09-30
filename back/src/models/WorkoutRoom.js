@@ -15,6 +15,7 @@ const WorkoutRoom = sequelize.define('WorkoutRoom', {
   hostUserId: {
     type: DataTypes.UUID,
     allowNull: false,
+    unique: true,
     field: 'host_user_id',
   },
   type: {
