@@ -13,7 +13,13 @@ router.use(authenticateAdmin);
 
 router.get('/', async (req, res) => {
   try {
-    const { page = 1, limit = 20, search = '' } = req.query;
+    const requestedPage = Number.parseInt(req.query.page, 10);
+    const requestedLimit = Number.parseInt(req.query.limit, 10);
+    const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(100, Math.max(1, requestedLimit))
+      : 30;
+    const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
     const offset = (page - 1) * limit;
 
     const where = search
@@ -29,16 +35,16 @@ router.get('/', async (req, res) => {
       where,
       attributes: { exclude: ['password'] },
       order: [['createdAt', 'DESC']],
-      limit: parseInt(limit, 10),
-      offset: parseInt(offset, 10),
+      limit,
+      offset,
     });
 
     res.json({
       users: rows,
       pagination: {
         total: count,
-        page: parseInt(page, 10),
-        limit: parseInt(limit, 10),
+        page,
+        limit,
         pages: Math.ceil(count / limit),
       },
     });

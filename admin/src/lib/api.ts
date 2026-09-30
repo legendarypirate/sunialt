@@ -85,9 +85,9 @@ export const api = {
   getDashboard: () =>
     request<{ stats: DashboardStats; recentUsers: User[] }>('/dashboard/stats'),
 
-  getUsers: (page = 1, search = '') =>
+  getUsers: (page = 1, search = '', limit = 30) =>
     request<{ users: User[]; pagination: Pagination }>(
-      `/users?page=${page}&search=${encodeURIComponent(search)}`
+      `/users?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`
     ),
 
   updateUser: (id: string, data: Partial<User>) =>
