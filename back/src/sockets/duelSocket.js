@@ -349,7 +349,12 @@ function attachDuelSocket(io) {
 
     // --- Room-code lobby ---
 
-    socket.on('room:create', () => {
+    socket.on('room:create', (opts = {}) => {
+      const roomType = opts.type === 'patience' ? 'patience' : '1min';
+      const maxParticipants = Number.isInteger(Number(opts.maxParticipants))
+        ? Math.max(2, Math.min(20, Number(opts.maxParticipants)))
+        : 2;
+
       // Remove any previous code this host created
       for (const [code, entry] of codeRooms) {
         if (entry.hostSocketId === socket.id) codeRooms.delete(code);
@@ -360,10 +365,12 @@ function attachDuelSocket(io) {
         hostSocketId: socket.id,
         hostPublicId: me.publicId,
         hostUser: me,
+        type: roomType,
+        maxParticipants,
         createdAt: Date.now(),
       });
 
-      socket.emit('room:created', { code });
+      socket.emit('room:created', { code, type: roomType, maxParticipants });
     });
 
     socket.on('room:join', ({ code }) => {
@@ -383,27 +390,30 @@ function attachDuelSocket(io) {
         return;
       }
 
+      const roomType = entry.type || '1min';
+      const maxParticipants = entry.maxParticipants || 2;
+
       // Consume the code — one-time use only
       codeRooms.delete(code);
 
       const hostSocket = io.sockets.sockets.get(entry.hostSocketId);
       const hostUser = entry.hostUser;
 
-      // Tell the joiner who their opponent (the host) is.
-      // Flutter's DuelHubService will call joinDuel(opponentPublicId) → emits duel:join.
       socket.emit('room:joined', {
         opponentPublicId: entry.hostPublicId,
         opponentName: hostUser.displayName || 'Хэрэглэгч',
         opponentPhotoUrl: hostUser.photoUrl || null,
+        type: roomType,
+        maxParticipants,
       });
 
-      // Tell the host who joined.
-      // Same flow: Flutter calls joinDuel(joinerPublicId) → emits duel:join.
       if (hostSocket) {
         hostSocket.emit('room:joined', {
           opponentPublicId: me.publicId,
           opponentName: me.displayName || 'Хэрэглэгч',
           opponentPhotoUrl: me.photoUrl || null,
+          type: roomType,
+          maxParticipants,
         });
       }
     });
