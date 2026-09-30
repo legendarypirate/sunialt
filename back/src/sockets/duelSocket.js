@@ -1,13 +1,15 @@
 const jwt = require('jsonwebtoken');
-const { User } = require('../models');
+const { Op } = require('sequelize');
+const { User, WorkoutRoom } = require('../models');
 
 const DUEL_DURATION_MS = 60_000;
+const ROOM_LIFETIME_MS = 24 * 60 * 60 * 1000;
 
 /** @type {Map<string, { ready: Set<number>, active: boolean, endsAt: number|null, timer: NodeJS.Timeout|null, scores: Map<number, number> }>} */
 const roomState = new Map();
 
-/** @type {Map<string, { hostSocketId: string, hostPublicId: number, hostUser: object, createdAt: number }>} */
-const codeRooms = new Map();
+/** Connected room members only. Room records themselves are persisted for 24 hours. */
+const codeRoomMembers = new Map();
 
 /** @type {Map<string, { playerA: object, playerB: object, startedAt: number }>} */
 const activeRoomsMeta = new Map();
@@ -129,31 +131,59 @@ function resetRoomOnEmpty(roomId) {
   observers.delete(roomId);
 }
 
-/** Remove stale code rooms older than 10 minutes */
-function pruneCodeRooms() {
-  const cutoff = Date.now() - 10 * 60 * 1000;
-  for (const [code, entry] of codeRooms) {
-    if (entry.createdAt < cutoff) codeRooms.delete(code);
+async function pruneCodeRooms() {
+  await WorkoutRoom.destroy({ where: { expiresAt: { [Op.lte]: new Date() } } });
+  for (const [code, members] of codeRoomMembers) {
+    if (members.size === 0) codeRoomMembers.delete(code);
   }
 }
 
-function generateRoomCode() {
-  pruneCodeRooms();
+async function generateRoomCode() {
+  await pruneCodeRooms();
   let code;
   do {
     code = String(Math.floor(100000 + Math.random() * 900000));
-  } while (codeRooms.has(code));
+  } while (await WorkoutRoom.count({ where: { code } }));
   return code;
 }
 
-/** Returns list of active (started) duel rooms for the room browser */
-function getActiveRooms() {
-  const result = [];
+/** Returns persistent lobbies plus currently started duels for the room browser. */
+async function getActiveRooms() {
+  await pruneCodeRooms();
+  const savedRooms = await WorkoutRoom.findAll({
+    where: { expiresAt: { [Op.gt]: new Date() } },
+    include: [{
+      model: User,
+      as: 'host',
+      attributes: ['publicId', 'displayName', 'photoUrl'],
+    }],
+    order: [['createdAt', 'DESC']],
+  });
+
+  const result = savedRooms.map((room) => ({
+    roomId: `code:${room.code}`,
+    code: room.code,
+    kind: 'lobby',
+    type: room.type,
+    maxParticipants: room.maxParticipants,
+    participantCount: codeRoomMembers.get(room.code)?.size ?? 0,
+    playerA: room.host ? {
+      publicId: room.host.publicId,
+      displayName: room.host.displayName || 'Хэрэглэгч',
+      photoUrl: room.host.photoUrl,
+    } : null,
+    playerB: null,
+    createdAt: room.createdAt,
+    expiresAt: room.expiresAt,
+    observerCount: 0,
+  }));
+
   for (const [roomId, meta] of activeRoomsMeta) {
     const state = roomState.get(roomId);
     if (!state || !state.active) continue;
     result.push({
       roomId,
+      kind: 'live',
       playerA: meta.playerA || null,
       playerB: meta.playerB || null,
       startedAt: meta.startedAt,
@@ -190,6 +220,7 @@ function attachDuelSocket(io) {
   io.on('connection', (socket) => {
     const me = socket.user;
     let activeRoom = null;
+    let activeCodeRoom = null;
 
     socket.join(userRoom(me.publicId));
 
@@ -250,6 +281,72 @@ function attachDuelSocket(io) {
 
       socket.to(roomId).emit('duel:peer-joined', peerPayload());
       return { roomId, peerPresent };
+    };
+
+    const leaveCodeRoom = () => {
+      if (!activeCodeRoom) return;
+      const members = codeRoomMembers.get(activeCodeRoom);
+      if (members?.get(me.publicId)?.socketId === socket.id) {
+        members.delete(me.publicId);
+        if (members.size === 0) codeRoomMembers.delete(activeCodeRoom);
+      }
+      activeCodeRoom = null;
+    };
+
+    const enterCodeRoom = async (code) => {
+      await pruneCodeRooms();
+      const room = await WorkoutRoom.findOne({
+        where: { code, expiresAt: { [Op.gt]: new Date() } },
+        include: [{ model: User, as: 'host' }],
+      });
+      if (!room) {
+        socket.emit('room:error', { message: 'Код олдсонгүй эсвэл хугацаа дууссан' });
+        return;
+      }
+
+      if (activeCodeRoom && activeCodeRoom !== code) leaveCodeRoom();
+      const members = codeRoomMembers.get(code) || new Map();
+      const existingMember = members.get(me.publicId);
+      const other = [...members.values()].find((member) => member.publicId !== me.publicId);
+      if (!existingMember && other) {
+        socket.emit('room:error', {
+          message: 'Өрөөнд одоогоор 2 хүн байна. Дараа дахин оролдоно уу.',
+        });
+        return;
+      }
+
+      members.set(me.publicId, {
+        socketId: socket.id,
+        publicId: me.publicId,
+        user: me,
+      });
+      codeRoomMembers.set(code, members);
+      activeCodeRoom = code;
+
+      const common = {
+        code,
+        type: room.type,
+        maxParticipants: room.maxParticipants,
+        expiresAt: room.expiresAt.getTime(),
+      };
+      socket.emit('room:entered', common);
+
+      if (!other) return;
+      const otherSocket = io.sockets.sockets.get(other.socketId);
+      socket.emit('room:joined', {
+        ...common,
+        opponentPublicId: other.publicId,
+        opponentName: other.user.displayName || 'Хэрэглэгч',
+        opponentPhotoUrl: other.user.photoUrl || null,
+      });
+      if (otherSocket) {
+        otherSocket.emit('room:joined', {
+          ...common,
+          opponentPublicId: me.publicId,
+          opponentName: me.displayName || 'Хэрэглэгч',
+          opponentPhotoUrl: me.photoUrl || null,
+        });
+      }
     };
 
     socket.on('duel:invite', ({ opponentPublicId }) => {
@@ -349,74 +446,47 @@ function attachDuelSocket(io) {
 
     // --- Room-code lobby ---
 
-    socket.on('room:create', (opts = {}) => {
+    socket.on('room:create', async (opts = {}) => {
       const roomType = opts.type === 'patience' ? 'patience' : '1min';
       const maxParticipants = Number.isInteger(Number(opts.maxParticipants))
         ? Math.max(2, Math.min(20, Number(opts.maxParticipants)))
         : 2;
 
-      // Remove any previous code this host created
-      for (const [code, entry] of codeRooms) {
-        if (entry.hostSocketId === socket.id) codeRooms.delete(code);
+      try {
+        const code = await generateRoomCode();
+        const expiresAt = new Date(Date.now() + ROOM_LIFETIME_MS);
+        await WorkoutRoom.create({
+          code,
+          hostUserId: me.id,
+          type: roomType,
+          maxParticipants,
+          expiresAt,
+        });
+        socket.emit('room:created', {
+          code,
+          type: roomType,
+          maxParticipants,
+          expiresAt: expiresAt.getTime(),
+        });
+        await enterCodeRoom(code);
+      } catch (err) {
+        socket.emit('room:error', { message: err.message || 'Өрөө үүсгэж чадсангүй' });
       }
-
-      const code = generateRoomCode();
-      codeRooms.set(code, {
-        hostSocketId: socket.id,
-        hostPublicId: me.publicId,
-        hostUser: me,
-        type: roomType,
-        maxParticipants,
-        createdAt: Date.now(),
-      });
-
-      socket.emit('room:created', { code, type: roomType, maxParticipants });
     });
 
-    socket.on('room:join', ({ code }) => {
+    socket.on('room:join', async ({ code }) => {
       if (!code || typeof code !== 'string' || code.length !== 6) {
         socket.emit('room:error', { message: 'Буруу код' });
         return;
       }
-
-      const entry = codeRooms.get(code);
-      if (!entry) {
-        socket.emit('room:error', { message: 'Код олдсонгүй эсвэл хугацаа дууссан' });
-        return;
-      }
-
-      if (entry.hostPublicId === me.publicId) {
-        socket.emit('room:error', { message: 'Өөрийн өрөөнд нэгдэх боломжгүй' });
-        return;
-      }
-
-      const roomType = entry.type || '1min';
-      const maxParticipants = entry.maxParticipants || 2;
-
-      // Consume the code — one-time use only
-      codeRooms.delete(code);
-
-      const hostSocket = io.sockets.sockets.get(entry.hostSocketId);
-      const hostUser = entry.hostUser;
-
-      socket.emit('room:joined', {
-        opponentPublicId: entry.hostPublicId,
-        opponentName: hostUser.displayName || 'Хэрэглэгч',
-        opponentPhotoUrl: hostUser.photoUrl || null,
-        type: roomType,
-        maxParticipants,
-      });
-
-      if (hostSocket) {
-        hostSocket.emit('room:joined', {
-          opponentPublicId: me.publicId,
-          opponentName: me.displayName || 'Хэрэглэгч',
-          opponentPhotoUrl: me.photoUrl || null,
-          type: roomType,
-          maxParticipants,
-        });
+      try {
+        await enterCodeRoom(code);
+      } catch (err) {
+        socket.emit('room:error', { message: err.message || 'Өрөөнд нэгдэж чадсангүй' });
       }
     });
+
+    socket.on('room:leave', leaveCodeRoom);
 
     // --- Observer / Spectator events ---
 
@@ -461,10 +531,8 @@ function attachDuelSocket(io) {
         }
       }
 
-      // Clean up any hosted code room
-      for (const [code, entry] of codeRooms) {
-        if (entry.hostSocketId === socket.id) codeRooms.delete(code);
-      }
+      // Presence is removed, but the persisted room remains joinable for 24 hours.
+      leaveCodeRoom();
 
       if (!activeRoom) return;
       const roomId = activeRoom;

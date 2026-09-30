@@ -16,6 +16,7 @@ const OrderItem = require('./OrderItem');
 const Setting = require('./Setting');
 const DeviceToken = require('./DeviceToken');
 const NotificationLog = require('./NotificationLog');
+const WorkoutRoom = require('./WorkoutRoom');
 
 User.hasMany(WorkoutSession, { foreignKey: 'userId', as: 'sessions' });
 User.hasMany(DeviceToken, { foreignKey: 'userId', as: 'deviceTokens', onDelete: 'CASCADE' });
@@ -40,6 +41,8 @@ UserBadge.belongsTo(Badge, { foreignKey: 'badgeId', as: 'badge' });
 User.hasMany(Duel, { foreignKey: 'userId', as: 'duels' });
 Duel.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 Duel.belongsTo(User, { foreignKey: 'opponentId', as: 'opponent' });
+User.hasMany(WorkoutRoom, { foreignKey: 'hostUserId', as: 'workoutRooms', onDelete: 'CASCADE' });
+WorkoutRoom.belongsTo(User, { foreignKey: 'hostUserId', as: 'host' });
 
 User.hasMany(Order, { foreignKey: 'userId', as: 'orders' });
 Order.belongsTo(User, { foreignKey: 'userId', as: 'user' });
@@ -69,4 +72,5 @@ module.exports = {
   Setting,
   DeviceToken,
   NotificationLog,
+  WorkoutRoom,
 };

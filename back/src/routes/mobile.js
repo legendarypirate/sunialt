@@ -554,9 +554,9 @@ router.get('/friends', authenticateUser, async (req, res) => {
   }
 });
 
-router.get('/duels/active-rooms', optionalUser, (_req, res) => {
+router.get('/duels/active-rooms', optionalUser, async (_req, res) => {
   try {
-    const rooms = getActiveRooms();
+    const rooms = await getActiveRooms();
     res.json({ rooms });
   } catch (err) {
     res.status(500).json({ error: err.message });
