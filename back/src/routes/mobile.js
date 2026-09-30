@@ -33,6 +33,7 @@ const {
   markNotificationRead,
   markAllNotificationsRead,
 } = require('../services/userNotifications');
+const { getActiveRooms } = require('../sockets/duelSocket');
 
 const router = express.Router();
 
@@ -541,7 +542,17 @@ router.get('/friends', authenticateUser, async (req, res) => {
   }
 });
 
+router.get('/duels/active-rooms', optionalUser, (_req, res) => {
+  try {
+    const rooms = getActiveRooms();
+    res.json({ rooms });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/duels/recent', authenticateUser, async (req, res) => {
+
   try {
     const duels = await Duel.findAll({
       where: {

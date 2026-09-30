@@ -9,6 +9,12 @@ const roomState = new Map();
 /** @type {Map<string, { hostSocketId: string, hostPublicId: number, hostUser: object, createdAt: number }>} */
 const codeRooms = new Map();
 
+/** @type {Map<string, { playerA: object, playerB: object, startedAt: number }>} */
+const activeRoomsMeta = new Map();
+
+/** observers: roomId -> Set of socketIds watching */
+const observers = new Map();
+
 function duelRoomId(publicIdA, publicIdB) {
   const ids = [Number(publicIdA), Number(publicIdB)].sort((a, b) => a - b);
   return `duel:${ids[0]}:${ids[1]}`;
@@ -101,6 +107,11 @@ function startDuel(io, roomId) {
   state.endsAt = Date.now() + DUEL_DURATION_MS;
   clearRoomTimer(state);
 
+  // Store meta for room listing
+  const [idA, idB] = duelParticipants(roomId);
+  const existing = activeRoomsMeta.get(roomId) || {};
+  activeRoomsMeta.set(roomId, { ...existing, startedAt: state.endsAt - DUEL_DURATION_MS });
+
   io.to(roomId).emit('duel:started', {
     endsAt: state.endsAt,
     durationSec: 60,
@@ -114,6 +125,8 @@ function resetRoomOnEmpty(roomId) {
   if (!state) return;
   clearRoomTimer(state);
   roomState.delete(roomId);
+  activeRoomsMeta.delete(roomId);
+  observers.delete(roomId);
 }
 
 /** Remove stale code rooms older than 10 minutes */
@@ -131,6 +144,25 @@ function generateRoomCode() {
     code = String(Math.floor(100000 + Math.random() * 900000));
   } while (codeRooms.has(code));
   return code;
+}
+
+/** Returns list of active (started) duel rooms for the room browser */
+function getActiveRooms() {
+  const result = [];
+  for (const [roomId, meta] of activeRoomsMeta) {
+    const state = roomState.get(roomId);
+    if (!state || !state.active) continue;
+    result.push({
+      roomId,
+      playerA: meta.playerA || null,
+      playerB: meta.playerB || null,
+      startedAt: meta.startedAt,
+      endsAt: state.endsAt,
+      scores: Object.fromEntries(state.scores),
+      observerCount: observers.get(roomId)?.size ?? 0,
+    });
+  }
+  return result;
 }
 
 function attachDuelSocket(io) {
@@ -198,6 +230,15 @@ function attachDuelSocket(io) {
       const peers = [...io.sockets.adapter.rooms.get(roomId) || []]
         .filter((sid) => sid !== socket.id);
       const peerPresent = peers.length > 0;
+
+      // Track meta for room list
+      const existingMeta = activeRoomsMeta.get(roomId) || {};
+      if (me.publicId < opponentId) {
+        existingMeta.playerA = peerPayload();
+      } else {
+        existingMeta.playerB = peerPayload();
+      }
+      activeRoomsMeta.set(roomId, existingMeta);
 
       socket.emit('duel:joined', {
         roomId,
@@ -367,7 +408,49 @@ function attachDuelSocket(io) {
       }
     });
 
+    // --- Observer / Spectator events ---
+
+    socket.on('observer:join', ({ roomId }) => {
+      if (!roomId || typeof roomId !== 'string') return;
+      const state = roomState.get(roomId);
+      socket.join(roomId);
+
+      if (!observers.has(roomId)) {
+        observers.set(roomId, new Set());
+      }
+      observers.get(roomId).add(socket.id);
+
+      const meta = activeRoomsMeta.get(roomId) || {};
+      socket.emit('observer:joined', {
+        roomId,
+        playerA: meta.playerA || null,
+        playerB: meta.playerB || null,
+        active: state?.active ?? false,
+        endsAt: state?.endsAt ?? null,
+        scores: state ? Object.fromEntries(state.scores) : {},
+      });
+    });
+
+    socket.on('observer:leave', ({ roomId }) => {
+      if (!roomId) return;
+      socket.leave(roomId);
+      if (observers.has(roomId)) {
+        observers.get(roomId).delete(socket.id);
+        if (observers.get(roomId).size === 0) {
+          observers.delete(roomId);
+        }
+      }
+    });
+
     socket.on('disconnect', () => {
+      // Clean up observer sets
+      for (const [rId, set] of observers) {
+        if (set.has(socket.id)) {
+          set.delete(socket.id);
+          if (set.size === 0) observers.delete(rId);
+        }
+      }
+
       // Clean up any hosted code room
       for (const [code, entry] of codeRooms) {
         if (entry.hostSocketId === socket.id) codeRooms.delete(code);
@@ -412,4 +495,5 @@ function attachDuelSocket(io) {
   });
 }
 
-module.exports = { attachDuelSocket, duelRoomId };
+module.exports = { attachDuelSocket, duelRoomId, getActiveRooms };
+
