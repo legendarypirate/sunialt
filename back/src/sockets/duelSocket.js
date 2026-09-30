@@ -476,24 +476,23 @@ function attachDuelSocket(io) {
       try {
         const expiresAt = new Date(Date.now() + ROOM_LIFETIME_MS);
         await pruneCodeRooms();
-        let room = await WorkoutRoom.findOne({ where: { hostUserId: me.id } });
+        const room = await WorkoutRoom.findOne({ where: { hostUserId: me.id } });
         if (room) {
-          await room.update({
-            type: roomType,
-            maxParticipants,
-            expiresAt,
+          socket.emit('room:error', {
+            code: 'ROOM_ALREADY_EXISTS',
+            message: `Та аль хэдийн өрөө үүсгэсэн байна. Код: ${room.code}`,
+            roomCode: room.code,
           });
-        } else {
-          const code = await generateRoomCode();
-          room = await WorkoutRoom.create({
-            code,
-            hostUserId: me.id,
-            type: roomType,
-            maxParticipants,
-            expiresAt,
-          });
+          return;
         }
-        const code = room.code;
+        const code = await generateRoomCode();
+        await WorkoutRoom.create({
+          code,
+          hostUserId: me.id,
+          type: roomType,
+          maxParticipants,
+          expiresAt,
+        });
         socket.emit('room:created', {
           code,
           type: roomType,
