@@ -6,6 +6,9 @@ const DUEL_DURATION_MS = 60_000;
 /** @type {Map<string, { ready: Set<number>, active: boolean, endsAt: number|null, timer: NodeJS.Timeout|null, scores: Map<number, number> }>} */
 const roomState = new Map();
 
+/** @type {Map<string, { hostSocketId: string, hostPublicId: number, hostUser: object, createdAt: number }>} */
+const codeRooms = new Map();
+
 function duelRoomId(publicIdA, publicIdB) {
   const ids = [Number(publicIdA), Number(publicIdB)].sort((a, b) => a - b);
   return `duel:${ids[0]}:${ids[1]}`;
@@ -111,6 +114,23 @@ function resetRoomOnEmpty(roomId) {
   if (!state) return;
   clearRoomTimer(state);
   roomState.delete(roomId);
+}
+
+/** Remove stale code rooms older than 10 minutes */
+function pruneCodeRooms() {
+  const cutoff = Date.now() - 10 * 60 * 1000;
+  for (const [code, entry] of codeRooms) {
+    if (entry.createdAt < cutoff) codeRooms.delete(code);
+  }
+}
+
+function generateRoomCode() {
+  pruneCodeRooms();
+  let code;
+  do {
+    code = String(Math.floor(100000 + Math.random() * 900000));
+  } while (codeRooms.has(code));
+  return code;
 }
 
 function attachDuelSocket(io) {
@@ -286,7 +306,73 @@ function attachDuelSocket(io) {
       });
     });
 
+    // --- Room-code lobby ---
+
+    socket.on('room:create', () => {
+      // Remove any previous code this host created
+      for (const [code, entry] of codeRooms) {
+        if (entry.hostSocketId === socket.id) codeRooms.delete(code);
+      }
+
+      const code = generateRoomCode();
+      codeRooms.set(code, {
+        hostSocketId: socket.id,
+        hostPublicId: me.publicId,
+        hostUser: me,
+        createdAt: Date.now(),
+      });
+
+      socket.emit('room:created', { code });
+    });
+
+    socket.on('room:join', ({ code }) => {
+      if (!code || typeof code !== 'string' || code.length !== 6) {
+        socket.emit('room:error', { message: 'Буруу код' });
+        return;
+      }
+
+      const entry = codeRooms.get(code);
+      if (!entry) {
+        socket.emit('room:error', { message: 'Код олдсонгүй эсвэл хугацаа дууссан' });
+        return;
+      }
+
+      if (entry.hostPublicId === me.publicId) {
+        socket.emit('room:error', { message: 'Өөрийн өрөөнд нэгдэх боломжгүй' });
+        return;
+      }
+
+      // Consume the code — one-time use only
+      codeRooms.delete(code);
+
+      const hostSocket = io.sockets.sockets.get(entry.hostSocketId);
+      const hostUser = entry.hostUser;
+
+      // Tell the joiner who their opponent (the host) is.
+      // Flutter's DuelHubService will call joinDuel(opponentPublicId) → emits duel:join.
+      socket.emit('room:joined', {
+        opponentPublicId: entry.hostPublicId,
+        opponentName: hostUser.displayName || 'Хэрэглэгч',
+        opponentPhotoUrl: hostUser.photoUrl || null,
+      });
+
+      // Tell the host who joined.
+      // Same flow: Flutter calls joinDuel(joinerPublicId) → emits duel:join.
+      if (hostSocket) {
+        hostSocket.emit('room:joined', {
+          opponentPublicId: me.publicId,
+          opponentName: me.displayName || 'Хэрэглэгч',
+          opponentPhotoUrl: me.photoUrl || null,
+        });
+      }
+    });
+
     socket.on('disconnect', () => {
+      // Clean up any hosted code room
+      for (const [code, entry] of codeRooms) {
+        if (entry.hostSocketId === socket.id) codeRooms.delete(code);
+      }
+
       if (!activeRoom) return;
       const roomId = activeRoom;
       const publicId = me.publicId;
