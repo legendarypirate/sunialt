@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useAdminQuery } from '@/hooks/use-admin-query';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { AdminShell } from '@/components/admin-shell';
+import { AdminTableActions, AdminTableCard, AdminTableToolbar } from '@/components/admin-table-controls';
 import { ImageUploadField } from '@/components/image-upload-field';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -146,11 +147,11 @@ export default function ExercisesPage() {
 
   return (
     <AdminShell title={mn.exercises}>
-      <div className="mb-4 flex justify-end">
+      <AdminTableToolbar className="justify-end">
         <Button onClick={openCreate}>
           <Plus className="mr-2 h-4 w-4" /> {mn.addExercise}
         </Button>
-      </div>
+      </AdminTableToolbar>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="right" className={`flex h-full w-full flex-col gap-0 overflow-hidden p-0 ${adminDrawerWidthClass}`}>
@@ -299,7 +300,7 @@ export default function ExercisesPage() {
         </SheetContent>
       </Sheet>
 
-      <div className="rounded-lg border">
+      <AdminTableCard>
         <Table className="table-fixed">
           <TableHeader>
             <TableRow>
@@ -330,8 +331,8 @@ export default function ExercisesPage() {
                       <div className="h-10 w-10 shrink-0 rounded-md bg-muted" />
                     )}
                     <div className="min-w-0">
-                      <div className="break-words font-medium">{exercise.title}</div>
-                      <div className="break-words text-xs text-muted-foreground">{exercise.summary}</div>
+                      <div className="wrap-break-word font-medium">{exercise.title}</div>
+                      <div className="wrap-break-word text-xs text-muted-foreground">{exercise.summary}</div>
                     </div>
                   </div>
                 </TableCell>
@@ -343,18 +344,16 @@ export default function ExercisesPage() {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="icon" onClick={() => openEdit(exercise)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => remove(exercise.id)}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  <AdminTableActions
+                    onEdit={() => openEdit(exercise)}
+                    onDelete={() => remove(exercise.id)}
+                  />
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-      </div>
+      </AdminTableCard>
     </AdminShell>
   );
 }

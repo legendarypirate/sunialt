@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useAdminQuery } from '@/hooks/use-admin-query';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { AdminShell } from '@/components/admin-shell';
+import { AdminTableActions, AdminTableCard, AdminTableToolbar } from '@/components/admin-table-controls';
 import { ImageUploadField } from '@/components/image-upload-field';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -127,11 +128,11 @@ export default function ChallengesPage() {
 
   return (
     <AdminShell title={mn.challenges}>
-      <div className="mb-4 flex justify-end">
+      <AdminTableToolbar className="justify-end">
         <Button onClick={openCreate}>
           <Plus className="mr-2 h-4 w-4" /> {mn.addChallenge}
         </Button>
-      </div>
+      </AdminTableToolbar>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
@@ -214,7 +215,7 @@ export default function ChallengesPage() {
         </SheetContent>
       </Sheet>
 
-      <div className="rounded-lg border">
+      <AdminTableCard>
         <Table className="table-fixed">
           <TableHeader>
             <TableRow>
@@ -242,8 +243,8 @@ export default function ChallengesPage() {
                       <div className="h-10 w-10 shrink-0 rounded-md bg-muted" />
                     )}
                     <div className="min-w-0">
-                      <div className="break-words font-medium">{c.name}</div>
-                      <div className="break-words text-xs text-muted-foreground line-clamp-2">{c.description}</div>
+                      <div className="wrap-break-word font-medium">{c.name}</div>
+                      <div className="wrap-break-word text-xs text-muted-foreground line-clamp-2">{c.description}</div>
                     </div>
                   </div>
                 </TableCell>
@@ -256,18 +257,16 @@ export default function ChallengesPage() {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="icon" onClick={() => openEdit(c)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => remove(c.id)}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  <AdminTableActions
+                    onEdit={() => openEdit(c)}
+                    onDelete={() => remove(c.id)}
+                  />
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-      </div>
+      </AdminTableCard>
     </AdminShell>
   );
 }

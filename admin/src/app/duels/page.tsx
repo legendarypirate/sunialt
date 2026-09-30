@@ -1,6 +1,7 @@
 'use client';
 
 import { AdminShell } from '@/components/admin-shell';
+import { AdminTableCard } from '@/components/admin-table-controls';
 import { useAdminQuery } from '@/hooks/use-admin-query';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -20,7 +21,7 @@ export default function DuelsPage() {
 
   return (
     <AdminShell title={mn.duels}>
-      <div className="rounded-lg border">
+      <AdminTableCard>
         <Table>
           <TableHeader>
             <TableRow>
@@ -49,7 +50,7 @@ export default function DuelsPage() {
             ))}
           </TableBody>
         </Table>
-      </div>
+      </AdminTableCard>
     </AdminShell>
   );
 }

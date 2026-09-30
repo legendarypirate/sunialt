@@ -20,6 +20,14 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { mn } from '@/lib/mn';
 
 const audienceOptions: { value: PushNotificationAudience; label: string }[] = [
@@ -218,26 +226,26 @@ export default function NotificationsPage() {
             <CardTitle className="text-base">Сүүлийн бүртгэлтэй төхөөрөмжүүд</CardTitle>
           </CardHeader>
           <CardContent className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="pb-2 pr-4">Хэрэглэгч</th>
-                  <th className="pb-2 pr-4">Platform</th>
-                  <th className="pb-2 pr-4">Token</th>
-                  <th className="pb-2">Шинэчлэгдсэн</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Хэрэглэгч</TableHead>
+                  <TableHead>Platform</TableHead>
+                  <TableHead>Token</TableHead>
+                  <TableHead>Шинэчлэгдсэн</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {stats.devices.slice(0, 20).map((device) => (
-                  <tr key={`${device.userId}-${device.tokenSuffix}`} className="border-b">
-                    <td className="py-2 pr-4">{device.userName || device.userEmail || device.userId}</td>
-                    <td className="py-2 pr-4">{device.platform}</td>
-                    <td className="py-2 pr-4 font-mono">...{device.tokenSuffix}</td>
-                    <td className="py-2">{new Date(device.updatedAt).toLocaleString()}</td>
-                  </tr>
+                  <TableRow key={`${device.userId}-${device.tokenSuffix}`}>
+                    <TableCell>{device.userName || device.userEmail || device.userId}</TableCell>
+                    <TableCell>{device.platform}</TableCell>
+                    <TableCell className="font-mono">...{device.tokenSuffix}</TableCell>
+                    <TableCell>{new Date(device.updatedAt).toLocaleString()}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       )}

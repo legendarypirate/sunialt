@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useAdminQuery } from '@/hooks/use-admin-query';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { AdminShell } from '@/components/admin-shell';
+import { AdminTableActions, AdminTableCard, AdminTableToolbar } from '@/components/admin-table-controls';
 import { MultiImageUploadField } from '@/components/multi-image-upload-field';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -194,11 +195,11 @@ export default function ProductsPage() {
 
   return (
     <AdminShell title={mn.products}>
-      <div className="mb-4 flex justify-end">
+      <AdminTableToolbar className="justify-end">
         <Button onClick={openCreate}>
           <Plus className="mr-2 h-4 w-4" /> {mn.addProduct}
         </Button>
-      </div>
+      </AdminTableToolbar>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
@@ -317,7 +318,7 @@ export default function ProductsPage() {
         </SheetContent>
       </Sheet>
 
-      <div className="rounded-lg border">
+      <AdminTableCard>
         <Table className="table-fixed">
           <TableHeader>
             <TableRow>
@@ -349,8 +350,8 @@ export default function ProductsPage() {
                         </div>
                       )}
                       <div className="min-w-0">
-                        <div className="break-words font-medium">{p.title}</div>
-                        <div className="break-words text-xs text-muted-foreground line-clamp-2">{p.description}</div>
+                        <div className="wrap-break-word font-medium">{p.title}</div>
+                        <div className="wrap-break-word text-xs text-muted-foreground line-clamp-2">{p.description}</div>
                         {images.length > 1 && (
                           <div className="text-xs text-muted-foreground">{images.length} зураг</div>
                         )}
@@ -366,19 +367,17 @@ export default function ProductsPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => remove(p.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <AdminTableActions
+                      onEdit={() => openEdit(p)}
+                      onDelete={() => remove(p.id)}
+                    />
                   </TableCell>
                 </TableRow>
               );
             })}
           </TableBody>
         </Table>
-      </div>
+      </AdminTableCard>
     </AdminShell>
   );
 }

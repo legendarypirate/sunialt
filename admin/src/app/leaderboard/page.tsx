@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { AdminShell } from '@/components/admin-shell';
+import { AdminTableCard, AdminTableToolbar } from '@/components/admin-table-controls';
 import { useAdminQuery } from '@/hooks/use-admin-query';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,12 +23,12 @@ export default function LeaderboardPage() {
 
   return (
     <AdminShell title={mn.leaderboard}>
-      <div className="mb-4 flex gap-2">
-        <Button variant={period === 'daily' ? 'default' : 'secondary'} onClick={() => setPeriod('daily')}>{mn.daily}</Button>
-        <Button variant={period === 'weekly' ? 'default' : 'secondary'} onClick={() => setPeriod('weekly')}>{mn.weekly}</Button>
-        <Button variant={period === 'all' ? 'default' : 'secondary'} onClick={() => setPeriod('all')}>{mn.allTime}</Button>
-      </div>
-      <div className="rounded-lg border">
+      <AdminTableToolbar>
+        <Button size="sm" variant={period === 'daily' ? 'default' : 'secondary'} onClick={() => setPeriod('daily')}>{mn.daily}</Button>
+        <Button size="sm" variant={period === 'weekly' ? 'default' : 'secondary'} onClick={() => setPeriod('weekly')}>{mn.weekly}</Button>
+        <Button size="sm" variant={period === 'all' ? 'default' : 'secondary'} onClick={() => setPeriod('all')}>{mn.allTime}</Button>
+      </AdminTableToolbar>
+      <AdminTableCard>
         <Table>
           <TableHeader>
             <TableRow>
@@ -59,7 +60,7 @@ export default function LeaderboardPage() {
             ))}
           </TableBody>
         </Table>
-      </div>
+      </AdminTableCard>
     </AdminShell>
   );
 }

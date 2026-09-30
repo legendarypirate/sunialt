@@ -1,12 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { AdminShell } from '@/components/admin-shell';
+import {
+  AdminTableActions,
+  AdminTableCard,
+  AdminTablePagination,
+  AdminTableSearch,
+} from '@/components/admin-table-controls';
 import { useAdminQuery } from '@/hooks/use-admin-query';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import {
   Select,
@@ -39,28 +42,6 @@ function userPlanValue(user: User): string {
   if (plan.includes('3 сар')) return 'quarterly';
   if (plan.includes('1 жил')) return 'yearly';
   return 'monthly';
-}
-
-function paginationItems(current: number, total: number): Array<number | string> {
-  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1);
-
-  const pages = new Set([1, total, current - 1, current, current + 1]);
-  if (current <= 4) {
-    [2, 3, 4, 5].forEach((page) => pages.add(page));
-  }
-  if (current >= total - 3) {
-    [total - 4, total - 3, total - 2, total - 1].forEach((page) => pages.add(page));
-  }
-
-  const sorted = [...pages].filter((page) => page > 0 && page <= total).sort((a, b) => a - b);
-  const result: Array<number | string> = [];
-  sorted.forEach((page, index) => {
-    if (index > 0 && page - sorted[index - 1] > 1) {
-      result.push(`ellipsis-${page}`);
-    }
-    result.push(page);
-  });
-  return result;
 }
 
 export default function UsersPage() {
@@ -139,20 +120,15 @@ export default function UsersPage() {
 
   return (
     <AdminShell title={mn.users}>
-      <div className="mb-4 flex gap-2">
-        <Input
-          placeholder={mn.searchPlaceholder}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') applySearch();
-          }}
-          className="max-w-sm"
-        />
-        <Button onClick={applySearch} variant="secondary">{mn.search}</Button>
-      </div>
+      <AdminTableSearch
+        value={search}
+        onChange={setSearch}
+        onSearch={applySearch}
+        placeholder={mn.searchPlaceholder}
+        label={mn.search}
+      />
 
-      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+      <AdminTableCard>
         <div className="overflow-x-auto">
           <Table>
           <TableHeader>
@@ -199,6 +175,7 @@ export default function UsersPage() {
                   <TableCell>{user.totalPushUps || 0}</TableCell>
                   <TableCell>
                     <Switch
+                      size="sm"
                       checked={user.isPlusSubscriber}
                       disabled={assigningId === user.id}
                       onCheckedChange={() => togglePlus(user)}
@@ -214,7 +191,7 @@ export default function UsersPage() {
                         }
                       }}
                     >
-                      <SelectTrigger className="h-9">
+                      <SelectTrigger className="h-7 text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -232,12 +209,10 @@ export default function UsersPage() {
                     {user.isPlusSubscriber ? formatSubscriptionDate(user.subscriptionRenewsAt) : '—'}
                   </TableCell>
                   <TableCell>
-                    <Switch checked={user.isActive} onCheckedChange={() => toggleActive(user)} />
+                    <Switch size="sm" checked={user.isActive} onCheckedChange={() => toggleActive(user)} />
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => remove(user)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <AdminTableActions onDelete={() => remove(user)} />
                   </TableCell>
                 </TableRow>
               ))
@@ -246,82 +221,21 @@ export default function UsersPage() {
           </Table>
         </div>
 
-        {pagination && pagination.total > 0 && (
-          <div className="flex flex-col gap-3 border-t bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-muted-foreground">
-              Бүгд {pagination.total} мэдээлэл, {(page - 1) * pageSize + 1}–
-              {Math.min(page * pageSize, pagination.total)} дугаар / нийт {pagination.pages} хуудас
-            </p>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <Select
-                value={String(pageSize)}
-                onValueChange={(value) => {
-                  setPageSize(Number(value));
-                  setPage(1);
-                }}
-              >
-                <SelectTrigger className="h-9 w-20.5" aria-label="Нэг хуудсанд харуулах тоо">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[30, 50, 80, 100].map((size) => (
-                    <SelectItem key={size} value={String(size)}>{size}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <nav className="flex items-center gap-1" aria-label="Хуудас сонгох">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={page <= 1 || loading}
-                  onClick={() => setPage((current) => Math.max(1, current - 1))}
-                  className="gap-1 px-2"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  <span className="hidden sm:inline">Өмнөх</span>
-                </Button>
-
-                {paginationItems(page, pagination.pages).map((item) =>
-                  typeof item === 'number' ? (
-                    <Button
-                      key={item}
-                      type="button"
-                      variant={item === page ? 'outline' : 'ghost'}
-                      size="icon"
-                      disabled={loading}
-                      aria-current={item === page ? 'page' : undefined}
-                      aria-label={`${item}-р хуудас`}
-                      onClick={() => setPage(item)}
-                      className="h-9 w-9"
-                    >
-                      {item}
-                    </Button>
-                  ) : (
-                    <span key={item} className="flex h-9 w-7 items-center justify-center text-muted-foreground">
-                      …
-                    </span>
-                  )
-                )}
-
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={page >= pagination.pages || loading}
-                  onClick={() => setPage((current) => Math.min(pagination.pages, current + 1))}
-                  className="gap-1 px-2"
-                >
-                  <span className="hidden sm:inline">Дараах</span>
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </nav>
-            </div>
-          </div>
+        {pagination && (
+          <AdminTablePagination
+            page={page}
+            pageSize={pageSize}
+            total={pagination.total}
+            totalPages={pagination.pages}
+            loading={loading}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
+          />
         )}
-      </div>
+      </AdminTableCard>
     </AdminShell>
   );
 }

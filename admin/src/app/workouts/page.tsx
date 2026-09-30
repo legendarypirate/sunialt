@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useAdminQuery } from '@/hooks/use-admin-query';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { AdminShell } from '@/components/admin-shell';
+import { AdminTableActions, AdminTableCard, AdminTableToolbar } from '@/components/admin-table-controls';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -108,7 +109,7 @@ export default function WorkoutsPage() {
 
   return (
     <AdminShell title={mn.workouts}>
-      <div className="mb-4 flex justify-end">
+      <AdminTableToolbar className="justify-end">
         <Dialog open={open} onOpenChange={setOpen}>
           <Button onClick={() => { openCreate(); setOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" /> {mn.addWorkout}
@@ -160,9 +161,9 @@ export default function WorkoutsPage() {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
+      </AdminTableToolbar>
 
-      <div className="rounded-lg border">
+      <AdminTableCard>
         <Table>
           <TableHeader>
             <TableRow>
@@ -192,18 +193,16 @@ export default function WorkoutsPage() {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="icon" onClick={() => openEdit(w)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => remove(w.id)}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  <AdminTableActions
+                    onEdit={() => openEdit(w)}
+                    onDelete={() => remove(w.id)}
+                  />
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-      </div>
+      </AdminTableCard>
     </AdminShell>
   );
 }

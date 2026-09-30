@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { AdminShell } from '@/components/admin-shell';
+import { AdminTableActions, AdminTableCard, AdminTableToolbar } from '@/components/admin-table-controls';
 import { useAdminQuery } from '@/hooks/use-admin-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -89,7 +90,7 @@ export default function ProductCategoriesPage() {
 
   return (
     <AdminShell title={mn.productCategories}>
-      <div className="mb-4 flex justify-end">
+      <AdminTableToolbar className="justify-end">
         <Dialog open={open} onOpenChange={setOpen}>
           <Button onClick={() => { openCreate(); setOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" /> {mn.addProductCategory}
@@ -129,9 +130,9 @@ export default function ProductCategoriesPage() {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
+      </AdminTableToolbar>
 
-      <div className="rounded-lg border">
+      <AdminTableCard>
         <Table>
           <TableHeader>
             <TableRow>
@@ -154,18 +155,16 @@ export default function ProductCategoriesPage() {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="icon" onClick={() => openEdit(category)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => remove(category.id)}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  <AdminTableActions
+                    onEdit={() => openEdit(category)}
+                    onDelete={() => remove(category.id)}
+                  />
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-      </div>
+      </AdminTableCard>
     </AdminShell>
   );
 }

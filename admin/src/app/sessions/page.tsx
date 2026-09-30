@@ -1,10 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Trash2 } from 'lucide-react';
 import { AdminShell } from '@/components/admin-shell';
+import { AdminTableActions, AdminTableCard } from '@/components/admin-table-controls';
 import { useAdminQuery } from '@/hooks/use-admin-query';
-import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -35,7 +34,7 @@ export default function SessionsPage() {
 
   return (
     <AdminShell title={mn.sessions}>
-      <div className="rounded-lg border">
+      <AdminTableCard>
         <Table>
           <TableHeader>
             <TableRow>
@@ -67,15 +66,13 @@ export default function SessionsPage() {
                 <TableCell>{session.source}</TableCell>
                 <TableCell>{new Date(session.completedAt).toLocaleString()}</TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="icon" onClick={() => remove(session.id)}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  <AdminTableActions onDelete={() => remove(session.id)} />
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-      </div>
+      </AdminTableCard>
     </AdminShell>
   );
 }
