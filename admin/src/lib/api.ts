@@ -227,6 +227,16 @@ export const api = {
 
   getOrders: () => request<{ orders: Order[] }>('/orders'),
 
+  getQpayPayments: (page = 1, limit = 30) =>
+    request<{ payments: QpayPayment[]; pagination: Pagination }>(
+      `/orders/qpay-payments?page=${page}&limit=${limit}`
+    ),
+
+  checkQpayPayment: (id: string) =>
+    request<{ paid: boolean; payment: QpayPayment }>(`/orders/${id}/qpay/check`, {
+      method: 'POST',
+    }),
+
   updateOrder: (id: string, data: Partial<Order>) =>
     request<{ order: Order }>(`/orders/${id}`, {
       method: 'PATCH',
@@ -433,6 +443,11 @@ export interface Order {
   createdAt: string;
   user?: { id: string; displayName: string | null; email: string };
   items?: OrderItem[];
+}
+
+export interface QpayPayment extends Order {
+  qpayInvoiceId: string | null;
+  qpayDemo: boolean;
 }
 
 export type PushNotificationAudience = 'all' | 'free' | 'pro';

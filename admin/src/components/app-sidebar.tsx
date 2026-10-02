@@ -18,6 +18,7 @@ import {
   ClipboardList,
   Settings,
   Bell,
+  CreditCard,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -46,6 +47,7 @@ const navItems = [
   { href: '/products', label: mn.products, icon: ShoppingBag },
   { href: '/product-categories', label: mn.productCategories, icon: Tags },
   { href: '/orders', label: mn.orders, icon: Receipt },
+  { href: '/qpay-payments', label: mn.qpayPayments, icon: CreditCard },
   { href: '/notifications', label: mn.notifications, icon: Bell },
   { href: '/settings', label: mn.settings, icon: Settings },
   { href: '/badges', label: mn.badges, icon: Medal },
