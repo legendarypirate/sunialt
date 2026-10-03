@@ -3,7 +3,8 @@ const { Op } = require('sequelize');
 const { User, WorkoutRoom, DeviceToken } = require('../models');
 const { sendToTokens } = require('../services/fcm');
 
-const DUEL_DURATION_MS = 60_000;
+const PRE_COUNTDOWN_MS = 4_000; // 3-2-1-GO! overlay on client
+const DUEL_DURATION_MS = 60_000 + PRE_COUNTDOWN_MS; // total timer includes pre-countdown
 const ROOM_LIFETIME_MS = 24 * 60 * 60 * 1000;
 
 /** @type {Map<string, { ready: Set<number>, active: boolean, endsAt: number|null, timer: NodeJS.Timeout|null, scores: Map<number, number> }>} */
@@ -61,7 +62,7 @@ function readyPayload(roomId, publicId) {
     peerReady: readyIds.some((id) => id !== publicId),
     active: state.active,
     endsAt: state.endsAt,
-    durationSec: 60,
+    durationSec: 64,
   };
 }
 
@@ -93,7 +94,7 @@ function endDuel(io, roomId) {
     scores: { [idA]: scoreA, [idB]: scoreB },
     winnerPublicId,
     tie: winnerPublicId == null,
-    durationSec: 60,
+    durationSec: 64,
   });
 
   state.ready.clear();
@@ -117,7 +118,7 @@ function startDuel(io, roomId) {
 
   io.to(roomId).emit('duel:started', {
     endsAt: state.endsAt,
-    durationSec: 60,
+    durationSec: 64,
   });
 
   state.timer = setTimeout(() => endDuel(io, roomId), DUEL_DURATION_MS);
@@ -330,9 +331,10 @@ function attachDuelSocket(io) {
       const members = codeRoomMembers.get(code) || new Map();
       const existingMember = members.get(me.publicId);
       const other = [...members.values()].find((member) => member.publicId !== me.publicId);
-      if (!existingMember && other) {
+      const maxAllowed = room.maxParticipants || 2;
+      if (!existingMember && members.size >= maxAllowed) {
         socket.emit('room:error', {
-          message: 'Өрөөнд одоогоор 2 хүн байна. Дараа дахин оролдоно уу.',
+          message: `Өрөө дүүрсэн байна (дээд тал нь ${maxAllowed} хүн).`,
         });
         return;
       }
@@ -501,15 +503,12 @@ function attachDuelSocket(io) {
       try {
         const expiresAt = new Date(Date.now() + ROOM_LIFETIME_MS);
         await pruneCodeRooms();
-        const room = await WorkoutRoom.findOne({ where: { hostUserId: me.id } });
-        if (room) {
-          socket.emit('room:error', {
-            code: 'ROOM_ALREADY_EXISTS',
-            message: `Та аль хэдийн өрөө үүсгэсэн байна. Код: ${room.code}`,
-            roomCode: room.code,
-          });
-          return;
+        // Clean up any existing room created by this host
+        const oldRooms = await WorkoutRoom.findAll({ where: { hostUserId: me.id } });
+        for (const r of oldRooms) {
+          codeRoomMembers.delete(r.code);
         }
+        await WorkoutRoom.destroy({ where: { hostUserId: me.id } });
         const code = await generateRoomCode();
         await WorkoutRoom.create({
           code,
