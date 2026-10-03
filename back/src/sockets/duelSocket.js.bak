@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { Op } = require('sequelize');
-const { User, WorkoutRoom, DeviceToken } = require('../models');
-const { sendToTokens } = require('../services/fcm');
+const { User, WorkoutRoom } = require('../models');
 
 const DUEL_DURATION_MS = 60_000;
 const ROOM_LIFETIME_MS = 24 * 60 * 60 * 1000;
@@ -371,7 +370,7 @@ function attachDuelSocket(io) {
       }
     };
 
-    socket.on('duel:invite', async ({ opponentPublicId }) => {
+    socket.on('duel:invite', ({ opponentPublicId }) => {
       const opponentId = Number(opponentPublicId);
       if (!Number.isFinite(opponentId) || opponentId <= 0 || opponentId === me.publicId) {
         socket.emit('duel:error', { message: 'Буруу ID' });
@@ -382,30 +381,6 @@ function attachDuelSocket(io) {
       const online = (io.sockets.adapter.rooms.get(targetRoom)?.size ?? 0) > 0;
 
       if (!online) {
-        // Send FCM push notification to the offline user
-        try {
-          const targetUser = await User.findOne({ where: { publicId: opponentId } });
-          if (targetUser) {
-            const tokens = await DeviceToken.findAll({ where: { userId: targetUser.id } });
-            if (tokens.length > 0) {
-              const senderName = me.displayName || 'Хэрэглэгч';
-              await sendToTokens(tokens, {
-                title: 'Тулааны урилга! 🥊',
-                body: `${senderName} тантай тулаан хийхийг хүсэж байна`,
-                data: {
-                  type: 'duel_invite',
-                  fromPublicId: String(me.publicId),
-                  fromName: senderName,
-                  fromPhotoUrl: me.photoUrl || '',
-                },
-              });
-              socket.emit('duel:invite-result', { ok: false, reason: 'offline', fcmSent: true });
-              return;
-            }
-          }
-        } catch (err) {
-          console.warn('[Duel] FCM invite fallback failed:', err.message);
-        }
         socket.emit('duel:invite-result', { ok: false, reason: 'offline' });
         return;
       }
