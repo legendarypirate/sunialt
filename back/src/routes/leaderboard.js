@@ -1,11 +1,53 @@
 const express = require('express');
 const { Op, fn, col, literal } = require('sequelize');
-const { WorkoutSession, User } = require('../models');
+const { WorkoutSession, User, Challenge, ChallengeEntry } = require('../models');
 const { authenticateAdmin } = require('../middleware/auth');
 const { startOfDay } = require('../services/stats');
 
 const router = express.Router();
 router.use(authenticateAdmin);
+
+router.get('/challenge/:id', async (req, res) => {
+  try {
+    const challenge = await Challenge.findByPk(req.params.id, {
+      attributes: ['id', 'name', 'kind', 'isActive'],
+    });
+    if (!challenge) {
+      return res.status(404).json({ error: 'Challenge not found' });
+    }
+
+    const entries = await ChallengeEntry.findAll({
+      where: { challengeId: challenge.id },
+      include: [{
+        model: User,
+        as: 'user',
+        attributes: ['id', 'displayName', 'email'],
+      }],
+      order: [
+        ['score', 'DESC'],
+        ['completedAt', 'ASC'],
+      ],
+      limit: 100,
+    });
+
+    res.json({
+      challenge,
+      leaderboard: entries.map((entry, index) => {
+        const json = entry.toJSON();
+        return {
+          rank: index + 1,
+          userId: json.userId,
+          name: json.user?.displayName || 'Хэрэглэгч',
+          email: json.user?.email,
+          score: Number(json.score),
+          completedAt: json.completedAt,
+        };
+      }),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 router.get('/', async (req, res) => {
   try {

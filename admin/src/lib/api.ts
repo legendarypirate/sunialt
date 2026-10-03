@@ -223,6 +223,11 @@ export const api = {
   getLeaderboard: (period = 'daily') =>
     request<{ period: string; leaderboard: LeaderboardRow[] }>(`/leaderboard?period=${period}`),
 
+  getChallengeLeaderboard: (challengeId: string) =>
+    request<{ challenge: Challenge | null; leaderboard: ChallengeLeaderboardRow[] }>(
+      `/leaderboard/challenge/${challengeId}`
+    ),
+
   getDuels: () => request<{ duels: Duel[] }>('/duels'),
 
   getOrders: () => request<{ orders: Order[] }>('/orders'),
@@ -413,6 +418,15 @@ export interface LeaderboardRow {
   email?: string;
   score: number;
   sessions: number;
+}
+
+export interface ChallengeLeaderboardRow {
+  rank: number;
+  userId: string;
+  name: string;
+  email?: string;
+  score: number;
+  completedAt: string;
 }
 
 export interface Duel {
