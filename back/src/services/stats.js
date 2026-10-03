@@ -256,28 +256,25 @@ async function buildRepLeaderboard(models, options = {}) {
 }
 
 async function challengeLeaderboard(models, challenge, currentUser = null) {
+  if (!challenge) return [];
   const kind = challenge.kind || 'daily';
+  let start = new Date('2000-01-01');
+  let limit = 100;
+
   if (kind === 'daily') {
-    return buildRepLeaderboard(models, {
-      start: startOfDay(new Date()),
-      limit: 20,
-      currentUser,
-    });
-  }
-  if (kind === 'weekly') {
-    const start = new Date();
-    start.setDate(start.getDate() - 7);
-    return buildRepLeaderboard(models, {
-      start,
-      limit: 50,
-      currentUser,
-    });
+    start = startOfDay(new Date());
+    limit = 50;
+  } else if (kind === 'weekly') {
+    const now = new Date();
+    start = new Date(now);
+    start.setDate(now.getDate() - 7);
+    limit = 50;
   }
 
   return buildRepLeaderboard(models, {
-    start: new Date('2000-01-01'),
+    start,
     challengeId: challenge.id,
-    limit: 100,
+    limit,
     currentUser,
   });
 }

@@ -10,6 +10,7 @@ const {
   Exercise,
   Badge,
   WorkoutSession,
+  ChallengeEntry,
   Setting,
 } = require('../models');
 const { migrate: migrateExerciseIntro } = require('./migrateExerciseIntro');
@@ -394,6 +395,38 @@ async function seed() {
         })),
       ]);
       console.log('Demo users and sessions seeded');
+    }
+
+    if (await ChallengeEntry.count() === 0) {
+      const oneMinChallenge = await Challenge.findOne({ where: { name: '1 минутын суниалт' } });
+      if (oneMinChallenge) {
+        const now = new Date();
+        const challengeScores = [
+          { user: leaderUsers[0].user, score: 55 },
+          { user: temka, score: 48 },
+          { user: leaderUsers[1].user, score: 42 },
+          { user: leaderUsers[2].user, score: 35 },
+        ];
+        await ChallengeEntry.bulkCreate(
+          challengeScores.map((c) => ({
+            challengeId: oneMinChallenge.id,
+            userId: c.user.id,
+            score: c.score,
+            completedAt: now,
+          }))
+        );
+        await WorkoutSession.bulkCreate(
+          challengeScores.map((c) => ({
+            userId: c.user.id,
+            challengeId: oneMinChallenge.id,
+            exerciseTitle: oneMinChallenge.name,
+            repCount: c.score,
+            source: 'challenge',
+            completedAt: now,
+          }))
+        );
+        console.log('Challenge entries and sessions seeded');
+      }
     }
 
     await Setting.findOrCreate({
