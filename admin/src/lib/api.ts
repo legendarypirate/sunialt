@@ -516,6 +516,12 @@ export interface DashboardStats {
   totalProducts: number;
   totalSessions: number;
   totalReps: number;
+  totalQpayRevenue: number;
+  qpaySubscriptions: {
+    monthly: number;
+    quarterly: number;
+    yearly: number;
+  };
 }
 
 export interface Pagination {

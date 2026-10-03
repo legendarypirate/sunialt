@@ -73,6 +73,7 @@ export const mn = {
   inShop: 'Дэлгүүрт',
   totalSessions: 'Дасгалын сесс',
   totalReps: 'Нийт суниалт',
+  totalQpayRevenue: 'Нийт QPay орлого',
   recentUsers: 'Сүүлийн хэрэглэгчид',
   noUsersYet: 'Хэрэглэгч байхгүй',
   unknown: 'Тодорхойгүй',

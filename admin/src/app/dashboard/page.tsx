@@ -1,6 +1,15 @@
 'use client';
 
-import { Users, Dumbbell, Trophy, ShoppingBag, Crown, Activity, ClipboardList } from 'lucide-react';
+import {
+  Users,
+  Dumbbell,
+  Trophy,
+  ShoppingBag,
+  Crown,
+  Activity,
+  ClipboardList,
+  Banknote,
+} from 'lucide-react';
 import { AdminShell } from '@/components/admin-shell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +25,7 @@ function StatCard({
   subtitle,
 }: {
   title: string;
-  value: number;
+  value: number | string;
   icon: React.ElementType;
   subtitle?: string;
 }) {
@@ -41,7 +50,7 @@ export default function DashboardPage() {
     <AdminShell title={mn.dashboard}>
       {loading ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
+          {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="h-28" />
           ))}
         </div>
@@ -61,6 +70,16 @@ export default function DashboardPage() {
               value={data.stats.plusSubscribers}
               icon={Crown}
               subtitle={mn.subscribers}
+            />
+            <StatCard
+              title={mn.totalQpayRevenue}
+              value={`${(data.stats.totalQpayRevenue || 0).toLocaleString('mn-MN')}₮`}
+              icon={Banknote}
+              subtitle={[
+                `${mn.subscriptionMonthly}: ${data.stats.qpaySubscriptions?.monthly || 0}`,
+                `${mn.subscriptionQuarterly}: ${data.stats.qpaySubscriptions?.quarterly || 0}`,
+                `${mn.subscriptionYearly}: ${data.stats.qpaySubscriptions?.yearly || 0}`,
+              ].join(' · ')}
             />
             <StatCard
               title={mn.exercises}
