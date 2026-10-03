@@ -22,6 +22,8 @@ const {
   startOfDay,
   applyFreshCounters,
   dayKey,
+  challengeLeaderboard,
+  buildRepLeaderboard,
 } = require('../services/stats');
 const { getQpayPublic, getSetting } = require('../services/settings');
 const { createQpayInvoice, checkQpayPayment } = require('../services/qpay');
@@ -191,29 +193,10 @@ async function catalogPayload(currentUser) {
 }
 
 async function dailyLeaderboard(currentUser) {
-  const start = startOfDay(new Date());
-  const rows = await WorkoutSession.findAll({
-    attributes: [
-      'userId',
-      [fn('SUM', col('rep_count')), 'score'],
-    ],
-    where: { completedAt: { [Op.gte]: start } },
-    include: [{ model: User, as: 'user', attributes: ['id', 'displayName', 'email'] }],
-    group: ['WorkoutSession.user_id', 'user.id', 'user.display_name', 'user.email'],
-    order: [[literal('SUM(rep_count)'), 'DESC']],
-    limit: 20,
-  });
-
-  return rows.map((row, index) => {
-    const json = row.toJSON();
-    return {
-      rank: index + 1,
-      userId: json.userId,
-      name: json.user?.displayName || 'Хэрэглэгч',
-      score: Number(json.score),
-      isYou: currentUser ? json.userId === currentUser.id : false,
-    };
-  });
+  return buildRepLeaderboard(
+    { WorkoutSession, User },
+    { start: startOfDay(new Date()), limit: 20, currentUser },
+  );
 }
 
 router.post('/auth/register', async (req, res) => {
@@ -423,6 +406,30 @@ router.get('/dashboard', authenticateUser, async (req, res) => {
 router.get('/leaderboard', optionalUser, async (req, res) => {
   try {
     res.json({ leaderboard: await dailyLeaderboard(req.user || null) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/challenges/:id/leaderboard', optionalUser, async (req, res) => {
+  try {
+    const challenge = await Challenge.findByPk(req.params.id);
+    if (!challenge) {
+      return res.status(404).json({ error: 'Challenge not found' });
+    }
+    const leaderboard = await challengeLeaderboard(
+      { WorkoutSession, User },
+      challenge,
+      req.user || null,
+    );
+    res.json({
+      challenge: {
+        id: challenge.id,
+        name: challenge.name,
+        kind: challenge.kind,
+      },
+      leaderboard,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

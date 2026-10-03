@@ -1,8 +1,7 @@
 const express = require('express');
-const { Op, fn, col, literal } = require('sequelize');
-const { WorkoutSession, User, Challenge, ChallengeEntry } = require('../models');
+const { WorkoutSession, User, Challenge } = require('../models');
 const { authenticateAdmin } = require('../middleware/auth');
-const { startOfDay } = require('../services/stats');
+const { startOfDay, buildRepLeaderboard, challengeLeaderboard } = require('../services/stats');
 
 const router = express.Router();
 router.use(authenticateAdmin);
@@ -16,33 +15,14 @@ router.get('/challenge/:id', async (req, res) => {
       return res.status(404).json({ error: 'Challenge not found' });
     }
 
-    const entries = await ChallengeEntry.findAll({
-      where: { challengeId: challenge.id },
-      include: [{
-        model: User,
-        as: 'user',
-        attributes: ['id', 'displayName', 'email'],
-      }],
-      order: [
-        ['score', 'DESC'],
-        ['completedAt', 'ASC'],
-      ],
-      limit: 100,
-    });
+    const leaderboard = await challengeLeaderboard(
+      { WorkoutSession, User },
+      challenge,
+    );
 
     res.json({
       challenge,
-      leaderboard: entries.map((entry, index) => {
-        const json = entry.toJSON();
-        return {
-          rank: index + 1,
-          userId: json.userId,
-          name: json.user?.displayName || 'Хэрэглэгч',
-          email: json.user?.email,
-          score: Number(json.score),
-          completedAt: json.completedAt,
-        };
-      }),
+      leaderboard,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -61,32 +41,14 @@ router.get('/', async (req, res) => {
       start = new Date('2000-01-01');
     }
 
-    const rows = await WorkoutSession.findAll({
-      attributes: [
-        'userId',
-        [fn('SUM', col('rep_count')), 'score'],
-        [fn('COUNT', col('WorkoutSession.id')), 'sessions'],
-      ],
-      where: { completedAt: { [Op.gte]: start } },
-      include: [{ model: User, as: 'user', attributes: ['id', 'displayName', 'email'] }],
-      group: ['WorkoutSession.user_id', 'user.id', 'user.display_name', 'user.email'],
-      order: [[literal('SUM(rep_count)'), 'DESC']],
-      limit: 50,
-    });
+    const leaderboard = await buildRepLeaderboard(
+      { WorkoutSession, User },
+      { start, limit: 50, includeSessions: true },
+    );
 
     res.json({
       period,
-      leaderboard: rows.map((row, index) => {
-        const json = row.toJSON();
-        return {
-          rank: index + 1,
-          userId: json.userId,
-          name: json.user?.displayName || 'Хэрэглэгч',
-          email: json.user?.email,
-          score: Number(json.score),
-          sessions: Number(json.sessions),
-        };
-      }),
+      leaderboard,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

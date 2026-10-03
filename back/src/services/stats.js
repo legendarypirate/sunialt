@@ -203,7 +203,84 @@ async function recordSession(models, user, payload) {
   return session;
 }
 
+const { Op, fn, col, literal } = require('sequelize');
 const { withProductImages } = require('../utils/productImages');
+
+async function buildRepLeaderboard(models, options = {}) {
+  const { WorkoutSession, User } = models;
+  const {
+    start = startOfDay(new Date()),
+    challengeId = null,
+    limit = 50,
+    currentUser = null,
+    includeSessions = false,
+  } = options;
+
+  const where = { completedAt: { [Op.gte]: start } };
+  if (challengeId) {
+    where.challengeId = challengeId;
+  }
+
+  const rows = await WorkoutSession.findAll({
+    attributes: [
+      'userId',
+      [fn('SUM', col('rep_count')), 'score'],
+      [fn('MAX', col('completed_at')), 'completedAt'],
+      ...(includeSessions ? [[fn('COUNT', col('WorkoutSession.id')), 'sessions']] : []),
+    ],
+    where,
+    include: [{ model: User, as: 'user', attributes: ['id', 'displayName', 'email'] }],
+    group: ['WorkoutSession.user_id', 'user.id', 'user.display_name', 'user.email'],
+    order: [[literal('SUM(rep_count)'), 'DESC']],
+    limit,
+  });
+
+  return rows.map((row, index) => {
+    const json = row.toJSON();
+    const entry = {
+      rank: index + 1,
+      userId: json.userId,
+      name: json.user?.displayName || 'Хэрэглэгч',
+      email: json.user?.email,
+      score: Number(json.score),
+      completedAt: json.completedAt,
+    };
+    if (includeSessions) {
+      entry.sessions = Number(json.sessions);
+    }
+    if (currentUser) {
+      entry.isYou = json.userId === currentUser.id;
+    }
+    return entry;
+  });
+}
+
+async function challengeLeaderboard(models, challenge, currentUser = null) {
+  const kind = challenge.kind || 'daily';
+  if (kind === 'daily') {
+    return buildRepLeaderboard(models, {
+      start: startOfDay(new Date()),
+      limit: 20,
+      currentUser,
+    });
+  }
+  if (kind === 'weekly') {
+    const start = new Date();
+    start.setDate(start.getDate() - 7);
+    return buildRepLeaderboard(models, {
+      start,
+      limit: 50,
+      currentUser,
+    });
+  }
+
+  return buildRepLeaderboard(models, {
+    start: new Date('2000-01-01'),
+    challengeId: challenge.id,
+    limit: 100,
+    currentUser,
+  });
+}
 
 function formatProductCategory(category) {
   return {
@@ -241,6 +318,8 @@ module.exports = {
   startOfDay,
   applyFreshCounters,
   recordSession,
+  buildRepLeaderboard,
+  challengeLeaderboard,
   formatProduct,
   formatProductCategory,
 };
