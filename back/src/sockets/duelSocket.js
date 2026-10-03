@@ -38,6 +38,10 @@ function getRoomState(roomId) {
     roomState.set(roomId, {
       ready: new Set(),
       active: false,
+      type: '1min',
+      isCodeRoom: false,
+      code: null,
+      startedAt: null,
       endsAt: null,
       timer: null,
       scores: new Map(),
@@ -75,7 +79,7 @@ function emitReadyUpdate(io, roomId) {
   });
 }
 
-function endDuel(io, roomId) {
+function endDuel(io, roomId, quitterPublicId = null) {
   const state = roomState.get(roomId);
   if (!state || !state.active) return;
 
@@ -87,14 +91,29 @@ function endDuel(io, roomId) {
   const scoreB = state.scores.get(idB) ?? 0;
 
   let winnerPublicId = null;
-  if (scoreA > scoreB) winnerPublicId = idA;
-  else if (scoreB > scoreA) winnerPublicId = idB;
+  let reason = 'normal';
+
+  if (quitterPublicId != null) {
+    winnerPublicId = Number(quitterPublicId) === idA ? idB : idA;
+    reason = 'forfeit';
+  } else if (scoreA > scoreB) {
+    winnerPublicId = idA;
+  } else if (scoreB > scoreA) {
+    winnerPublicId = idB;
+  }
+
+  const durationSec = state.type === 'patience'
+    ? Math.max(1, Math.floor((Date.now() - (state.startedAt || Date.now())) / 1000))
+    : 64;
 
   io.to(roomId).emit('duel:ended', {
     scores: { [idA]: scoreA, [idB]: scoreB },
     winnerPublicId,
+    quitterPublicId: quitterPublicId != null ? Number(quitterPublicId) : null,
+    reason,
     tie: winnerPublicId == null,
-    durationSec: 64,
+    type: state.type || '1min',
+    durationSec,
   });
 
   state.ready.clear();
@@ -108,20 +127,27 @@ function startDuel(io, roomId) {
 
   state.active = true;
   state.scores.clear();
-  state.endsAt = Date.now() + DUEL_DURATION_MS;
+  state.startedAt = Date.now();
   clearRoomTimer(state);
+
+  const isPatience = state.type === 'patience';
+  if (isPatience) {
+    state.endsAt = null; // No timer timeout for patience
+  } else {
+    state.endsAt = Date.now() + DUEL_DURATION_MS;
+    state.timer = setTimeout(() => endDuel(io, roomId), DUEL_DURATION_MS);
+  }
 
   // Store meta for room listing
   const [idA, idB] = duelParticipants(roomId);
   const existing = activeRoomsMeta.get(roomId) || {};
-  activeRoomsMeta.set(roomId, { ...existing, startedAt: state.endsAt - DUEL_DURATION_MS });
+  activeRoomsMeta.set(roomId, { ...existing, startedAt: state.startedAt });
 
   io.to(roomId).emit('duel:started', {
     endsAt: state.endsAt,
-    durationSec: 64,
+    type: state.type || '1min',
+    durationSec: isPatience ? null : 64,
   });
-
-  state.timer = setTimeout(() => endDuel(io, roomId), DUEL_DURATION_MS);
 }
 
 function resetRoomOnEmpty(roomId) {
@@ -266,8 +292,21 @@ function attachDuelSocket(io) {
       activeRoom = null;
 
       const peersRemaining = io.sockets.adapter.rooms.get(roomId)?.size ?? 0;
-      if (state?.active && peersRemaining < 2) {
-        endDuel(io, roomId);
+      if (state?.isCodeRoom) {
+        // In open/persistent code rooms, a user leaving simply notifies peers and records stats. No win/draw endDuel!
+        if (state.active) {
+          state.active = false;
+          clearRoomTimer(state);
+          state.ready.clear();
+          state.endsAt = null;
+          io.to(roomId).emit('duel:ended', {
+            scores: Object.fromEntries(state.scores),
+            reason: 'peer-left',
+            isCodeRoom: true,
+          });
+        }
+      } else if (state?.active && peersRemaining < 2) {
+        endDuel(io, roomId, me.publicId);
       } else if (state && !state.active) {
         emitReadyUpdate(io, roomId);
       }
@@ -356,6 +395,12 @@ function attachDuelSocket(io) {
       socket.emit('room:entered', common);
 
       if (!other) return;
+      const roomId = duelRoomId(me.publicId, other.publicId);
+      const dState = getRoomState(roomId);
+      dState.type = room.type || '1min';
+      dState.isCodeRoom = true;
+      dState.code = code;
+
       const otherSocket = io.sockets.sockets.get(other.socketId);
       socket.emit('room:joined', {
         ...common,
@@ -605,8 +650,20 @@ function attachDuelSocket(io) {
         io.to(roomId).emit('duel:peer-left', { publicId });
 
         const peersRemaining = io.sockets.adapter.rooms.get(roomId)?.size ?? 0;
-        if (state?.active && peersRemaining < 2) {
-          endDuel(io, roomId);
+        if (state?.isCodeRoom) {
+          if (state.active) {
+            state.active = false;
+            clearRoomTimer(state);
+            state.ready.clear();
+            state.endsAt = null;
+            io.to(roomId).emit('duel:ended', {
+              scores: Object.fromEntries(state.scores),
+              reason: 'peer-left',
+              isCodeRoom: true,
+            });
+          }
+        } else if (state?.active && peersRemaining < 2) {
+          endDuel(io, roomId, publicId);
         } else if (state && !state.active) {
           emitReadyUpdate(io, roomId);
         }
