@@ -27,7 +27,7 @@ function StatCard({
   title: string;
   value: number | string;
   icon: React.ElementType;
-  subtitle?: string;
+  subtitle?: React.ReactNode;
 }) {
   return (
     <Card>
@@ -75,11 +75,16 @@ export default function DashboardPage() {
               title={mn.totalQpayRevenue}
               value={`${(data.stats.totalQpayRevenue || 0).toLocaleString('mn-MN')}₮`}
               icon={Banknote}
-              subtitle={[
-                `${mn.subscriptionMonthly}: ${data.stats.qpaySubscriptions?.monthly || 0}`,
-                `${mn.subscriptionQuarterly}: ${data.stats.qpaySubscriptions?.quarterly || 0}`,
-                `${mn.subscriptionYearly}: ${data.stats.qpaySubscriptions?.yearly || 0}`,
-              ].join(' · ')}
+              subtitle={
+                <>
+                  <strong className="font-semibold">{mn.subscriptionMonthly}</strong>
+                  : {data.stats.qpaySubscriptions?.monthly || 0} /{' '}
+                  <strong className="font-semibold">{mn.subscriptionQuarterly}</strong>
+                  : {data.stats.qpaySubscriptions?.quarterly || 0} /{' '}
+                  <strong className="font-semibold">{mn.subscriptionYearly}</strong>
+                  : {data.stats.qpaySubscriptions?.yearly || 0}
+                </>
+              }
             />
             <StatCard
               title={mn.exercises}
