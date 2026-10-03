@@ -10,7 +10,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from '@/components/ui/select';
 import {
   Table,
@@ -81,7 +80,10 @@ export default function LeaderboardPage() {
             disabled={challenges.length === 0}
           >
             <SelectTrigger className="h-8 min-w-56">
-              <SelectValue placeholder={mn.selectChallenge} />
+              <span className="min-w-0 flex-1 truncate text-left">
+                {challenges.find((challenge) => challenge.id === selectedChallengeId)?.name
+                  || mn.selectChallenge}
+              </span>
             </SelectTrigger>
             <SelectContent>
               {challenges.map((challenge) => (
