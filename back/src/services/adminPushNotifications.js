@@ -4,6 +4,8 @@ const { User, DeviceToken, NotificationLog } = require('../models');
 const { isFcmConfigured, sendToTokens, getFcmStatus } = require('./fcm');
 
 const AUDIENCE_KEYS = ['all', 'free', 'pro'];
+const MAX_SELECTED_USERS = 500;
+const RECIPIENT_SEARCH_LIMIT = 20;
 const SEND_BATCH_SIZE = 500;
 const LOG_INSERT_CHUNK = 1000;
 const MAX_STORED_ERRORS = 50;
@@ -15,10 +17,33 @@ const JOB_TTL_MS = 6 * 60 * 60 * 1000;
 
 const jobs = new Map();
 
-function audienceWhere(audience, userId) {
+function normalizeUserIds(userIds) {
+  if (userIds == null) return null;
+  if (!Array.isArray(userIds)) {
+    const err = new Error('userIds массив байх ёстой');
+    err.status = 400;
+    throw err;
+  }
+  const ids = [...new Set(userIds.map((id) => String(id || '').trim()).filter(Boolean))];
+  if (!ids.length) {
+    const err = new Error('Хамгийн багадаа нэг хэрэглэгч сонгоно уу');
+    err.status = 400;
+    throw err;
+  }
+  if (ids.length > MAX_SELECTED_USERS) {
+    const err = new Error(`Нэг удаад хамгийн ихдээ ${MAX_SELECTED_USERS} хэрэглэгч сонгох боломжтой`);
+    err.status = 400;
+    throw err;
+  }
+  return ids;
+}
+
+function audienceWhere(audience, userId, userIds) {
   const where = { isActive: true };
 
-  if (userId) {
+  if (userIds) {
+    where.id = { [Op.in]: userIds };
+  } else if (userId) {
     where.id = userId;
   } else if (audience === 'free') {
     where.isPlusSubscriber = false;
@@ -33,7 +58,7 @@ function audienceWhere(audience, userId) {
   return where;
 }
 
-async function findAudienceTokens({ audience = 'all', userId }) {
+async function findAudienceTokens({ audience = 'all', userId, userIds }) {
   // Single joined query instead of "fetch all user ids, then IN (...)".
   return DeviceToken.findAll({
     attributes: ['userId', 'token', 'platform'],
@@ -42,12 +67,48 @@ async function findAudienceTokens({ audience = 'all', userId }) {
         model: User,
         as: 'user',
         attributes: [],
-        where: audienceWhere(audience, userId),
+        where: audienceWhere(audience, userId, userIds),
         required: true,
       },
     ],
     raw: true,
   });
+}
+
+async function searchRecipients(search = '') {
+  const term = String(search || '').trim();
+  const where = { isActive: true };
+  if (term) {
+    where[Op.or] = [
+      { email: { [Op.iLike]: `%${term}%` } },
+      { displayName: { [Op.iLike]: `%${term}%` } },
+    ];
+  }
+
+  const users = await User.findAll({
+    where,
+    attributes: ['id', 'email', 'displayName', 'photoUrl', 'isPlusSubscriber'],
+    order: [['createdAt', 'DESC']],
+    limit: RECIPIENT_SEARCH_LIMIT,
+  });
+  if (!users.length) return [];
+
+  const tokenCounts = await DeviceToken.findAll({
+    where: { userId: { [Op.in]: users.map((user) => user.id) } },
+    attributes: ['userId', [DeviceToken.sequelize.fn('COUNT', DeviceToken.sequelize.col('token')), 'count']],
+    group: ['userId'],
+    raw: true,
+  });
+  const countByUser = new Map(tokenCounts.map((row) => [row.userId, Number(row.count)]));
+
+  return users.map((user) => ({
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+    photoUrl: user.photoUrl,
+    isPlusSubscriber: Boolean(user.isPlusSubscriber),
+    deviceCount: countByUser.get(user.id) || 0,
+  }));
 }
 
 async function countEligibleRecipients(audience) {
@@ -123,6 +184,7 @@ function serializeJob(job) {
     sent: job.sent,
     failed: job.failed,
     processedTokens: job.processedTokens,
+    requestedUsers: job.requestedUsers,
     recipientCount: job.recipientCount,
     tokenCount: job.tokenCount,
     fcmConfigured: true,
@@ -185,7 +247,7 @@ async function runBroadcast(job, tokenRows, payloadData) {
   }
 }
 
-async function sendAdminPush({ title, body, data = {}, audience = 'all', userId }) {
+async function sendAdminPush({ title, body, data = {}, audience = 'all', userId, userIds }) {
   if (!isFcmConfigured()) {
     const { error } = getFcmStatus();
     const err = new Error(
@@ -204,8 +266,11 @@ async function sendAdminPush({ title, body, data = {}, audience = 'all', userId 
     throw err;
   }
 
-  const tokenRows = await findAudienceTokens({ audience, userId });
+  const selectedIds =
+    audience === 'selected' || userIds != null ? normalizeUserIds(userIds ?? []) : null;
+  const tokenRows = await findAudienceTokens({ audience, userId, userIds: selectedIds });
   const recipientCount = new Set(tokenRows.map((row) => row.userId)).size;
+  const requestedUsers = selectedIds ? selectedIds.length : userId ? 1 : recipientCount;
 
   const payloadData = {
     type: 'admin_broadcast',
@@ -220,12 +285,13 @@ async function sendAdminPush({ title, body, data = {}, audience = 'all', userId 
     id: crypto.randomUUID(),
     key: Date.now().toString(36),
     status: tokenRows.length ? 'running' : 'done',
-    audience: userId ? 'user' : audience,
+    audience: selectedIds ? 'selected' : userId ? 'user' : audience,
     title: trimmedTitle,
     body: trimmedBody,
     sent: 0,
     failed: 0,
     processedTokens: 0,
+    requestedUsers,
     recipientCount,
     tokenCount: tokenRows.length,
     errors: [],
@@ -262,5 +328,6 @@ async function sendAdminPush({ title, body, data = {}, audience = 'all', userId 
 module.exports = {
   getPushStats,
   getPushJob,
+  searchRecipients,
   sendAdminPush,
 };

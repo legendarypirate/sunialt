@@ -3,6 +3,7 @@ const { authenticateAdmin } = require('../middleware/auth');
 const {
   getPushStats,
   getPushJob,
+  searchRecipients,
   sendAdminPush,
 } = require('../services/adminPushNotifications');
 
@@ -28,15 +29,25 @@ router.get('/stats', async (_req, res) => {
   }
 });
 
+router.get('/recipients', async (req, res) => {
+  try {
+    const users = await searchRecipients(req.query.search);
+    res.json({ users });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post('/send', async (req, res) => {
   try {
-    const { title, body, data, audience, userId } = req.body || {};
+    const { title, body, data, audience, userId, userIds } = req.body || {};
     const job = await sendAdminPush({
       title,
       body,
       data,
       audience: audience || 'all',
       userId,
+      userIds,
     });
     res.status(job.status === 'running' ? 202 : 200).json({
       ...job,

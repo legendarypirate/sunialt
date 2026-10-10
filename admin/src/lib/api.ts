@@ -267,6 +267,11 @@ export const api = {
 
   getNotificationJob: (jobId: string) =>
     request<SendPushNotificationResult>(`/notifications/jobs/${encodeURIComponent(jobId)}`),
+
+  searchNotificationRecipients: (search = '') =>
+    request<{ users: PushRecipient[] }>(
+      `/notifications/recipients?search=${encodeURIComponent(search)}`
+    ),
 };
 
 export interface Admin {
@@ -467,7 +472,16 @@ export interface QpayPayment extends Order {
   qpayDemo: boolean;
 }
 
-export type PushNotificationAudience = 'all' | 'free' | 'pro';
+export type PushNotificationAudience = 'all' | 'free' | 'pro' | 'selected';
+
+export interface PushRecipient {
+  id: string;
+  email: string;
+  displayName: string | null;
+  photoUrl: string | null;
+  isPlusSubscriber: boolean;
+  deviceCount: number;
+}
 
 export interface PushAudienceCount {
   users: number;
@@ -483,7 +497,7 @@ export interface PushNotificationStats {
   usersWithTokens: number;
   iosDevices: number;
   androidDevices: number;
-  audienceCounts: Record<PushNotificationAudience, PushAudienceCount>;
+  audienceCounts: Record<Exclude<PushNotificationAudience, 'selected'>, PushAudienceCount>;
   devices: Array<{
     userId: string;
     userEmail: string | null;
@@ -499,6 +513,7 @@ export interface SendPushNotificationPayload {
   body: string;
   audience?: PushNotificationAudience;
   userId?: string;
+  userIds?: string[];
   data?: Record<string, string>;
 }
 
@@ -510,6 +525,7 @@ export interface SendPushNotificationResult {
   sent: number;
   failed: number;
   processedTokens: number;
+  requestedUsers: number;
   recipientCount: number;
   tokenCount: number;
   fcmConfigured: boolean;
