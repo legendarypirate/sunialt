@@ -1,71 +1,21 @@
+const crypto = require('crypto');
 const { Op } = require('sequelize');
-const { User, DeviceToken } = require('../models');
+const { User, DeviceToken, NotificationLog } = require('../models');
 const { isFcmConfigured, sendToTokens, getFcmStatus } = require('./fcm');
-const { recordUserNotification } = require('./userNotifications');
 
 const AUDIENCE_KEYS = ['all', 'free', 'pro'];
+const SEND_BATCH_SIZE = 500;
+const LOG_INSERT_CHUNK = 1000;
+const MAX_STORED_ERRORS = 50;
+const RECENT_DEVICES_LIMIT = 20;
+// How long the HTTP request waits for a broadcast before handing back a job
+// id for polling. Small sends finish inline; large ones continue in background.
+const INLINE_WAIT_MS = 5000;
+const JOB_TTL_MS = 6 * 60 * 60 * 1000;
 
-async function countEligibleRecipients(audience) {
-  const userIds = await resolveTargetUserIds({ audience });
-  if (!userIds.length) {
-    return { users: 0, devices: 0 };
-  }
+const jobs = new Map();
 
-  const tokenRows = await DeviceToken.findAll({
-    where: { userId: { [Op.in]: userIds } },
-    attributes: ['userId'],
-  });
-
-  return {
-    users: new Set(tokenRows.map((row) => row.userId)).size,
-    devices: tokenRows.length,
-  };
-}
-
-async function getPushStats() {
-  const tokenRows = await DeviceToken.findAll({
-    attributes: ['userId', 'token', 'platform', 'updatedAt', 'createdAt'],
-    include: [
-      {
-        model: User,
-        as: 'user',
-        attributes: ['email', 'displayName'],
-      },
-    ],
-    order: [['updatedAt', 'DESC']],
-  });
-  const userIds = new Set(tokenRows.map((row) => row.userId));
-  const fcmStatus = getFcmStatus();
-
-  const audienceCounts = {};
-  await Promise.all(
-    AUDIENCE_KEYS.map(async (key) => {
-      audienceCounts[key] = await countEligibleRecipients(key);
-    })
-  );
-
-  return {
-    fcmConfigured: isFcmConfigured(),
-    fcmInitError: fcmStatus.error,
-    credentialsPath: fcmStatus.credentialsPath,
-    apnsTopic: fcmStatus.apnsTopic,
-    registeredDevices: tokenRows.length,
-    usersWithTokens: userIds.size,
-    iosDevices: tokenRows.filter((row) => row.platform === 'ios').length,
-    androidDevices: tokenRows.filter((row) => row.platform === 'android').length,
-    audienceCounts,
-    devices: tokenRows.map((row) => ({
-      userId: row.userId,
-      userEmail: row.user?.email || null,
-      userName: row.user?.displayName || null,
-      platform: row.platform,
-      tokenSuffix: row.token.slice(-8),
-      updatedAt: row.updatedAt,
-    })),
-  };
-}
-
-async function resolveTargetUserIds({ audience = 'all', userId }) {
+function audienceWhere(audience, userId) {
   const where = { isActive: true };
 
   if (userId) {
@@ -80,11 +30,159 @@ async function resolveTargetUserIds({ audience = 'all', userId }) {
     throw err;
   }
 
-  const users = await User.findAll({
-    where,
-    attributes: ['id'],
+  return where;
+}
+
+async function findAudienceTokens({ audience = 'all', userId }) {
+  // Single joined query instead of "fetch all user ids, then IN (...)".
+  return DeviceToken.findAll({
+    attributes: ['userId', 'token', 'platform'],
+    include: [
+      {
+        model: User,
+        as: 'user',
+        attributes: [],
+        where: audienceWhere(audience, userId),
+        required: true,
+      },
+    ],
+    raw: true,
   });
-  return users.map((user) => user.id);
+}
+
+async function countEligibleRecipients(audience) {
+  const rows = await findAudienceTokens({ audience });
+  return {
+    users: new Set(rows.map((row) => row.userId)).size,
+    devices: rows.length,
+  };
+}
+
+async function getPushStats() {
+  const fcmStatus = getFcmStatus();
+
+  const [registeredDevices, iosDevices, androidDevices, userIdRows, recentDevices] =
+    await Promise.all([
+      DeviceToken.count(),
+      DeviceToken.count({ where: { platform: 'ios' } }),
+      DeviceToken.count({ where: { platform: 'android' } }),
+      DeviceToken.findAll({
+        attributes: ['userId'],
+        group: ['userId'],
+        raw: true,
+      }),
+      DeviceToken.findAll({
+        attributes: ['userId', 'token', 'platform', 'updatedAt'],
+        include: [{ model: User, as: 'user', attributes: ['email', 'displayName'] }],
+        order: [['updatedAt', 'DESC']],
+        limit: RECENT_DEVICES_LIMIT,
+      }),
+    ]);
+
+  const audienceCounts = {};
+  await Promise.all(
+    AUDIENCE_KEYS.map(async (key) => {
+      audienceCounts[key] = await countEligibleRecipients(key);
+    })
+  );
+
+  return {
+    fcmConfigured: isFcmConfigured(),
+    fcmInitError: fcmStatus.error,
+    credentialsPath: fcmStatus.credentialsPath,
+    apnsTopic: fcmStatus.apnsTopic,
+    registeredDevices,
+    usersWithTokens: userIdRows.length,
+    iosDevices,
+    androidDevices,
+    audienceCounts,
+    devices: recentDevices.map((row) => ({
+      userId: row.userId,
+      userEmail: row.user?.email || null,
+      userName: row.user?.displayName || null,
+      platform: row.platform,
+      tokenSuffix: row.token.slice(-8),
+      updatedAt: row.updatedAt,
+    })),
+  };
+}
+
+function pruneJobs() {
+  const cutoff = Date.now() - JOB_TTL_MS;
+  for (const [id, job] of jobs) {
+    if (job.finishedAt && job.finishedAt < cutoff) jobs.delete(id);
+  }
+}
+
+function serializeJob(job) {
+  return {
+    jobId: job.id,
+    status: job.status,
+    audience: job.audience,
+    title: job.title,
+    sent: job.sent,
+    failed: job.failed,
+    processedTokens: job.processedTokens,
+    recipientCount: job.recipientCount,
+    tokenCount: job.tokenCount,
+    fcmConfigured: true,
+    errors: job.errors,
+    error: job.error,
+    startedAt: job.startedAt,
+    finishedAt: job.finishedAt,
+  };
+}
+
+function getPushJob(jobId) {
+  const job = jobs.get(jobId);
+  return job ? serializeJob(job) : null;
+}
+
+async function recordBroadcastLogs(job, userIds) {
+  const rows = userIds.map((userId) => ({
+    userId,
+    reminderKey: `admin_${job.key}_${userId}`,
+    title: job.title,
+    body: job.body,
+    type: 'admin_broadcast',
+  }));
+
+  for (let i = 0; i < rows.length; i += LOG_INSERT_CHUNK) {
+    await NotificationLog.bulkCreate(rows.slice(i, i + LOG_INSERT_CHUNK), {
+      ignoreDuplicates: true,
+    });
+  }
+}
+
+async function runBroadcast(job, tokenRows, payloadData) {
+  const userByToken = new Map(tokenRows.map((row) => [row.token, row.userId]));
+
+  for (let i = 0; i < tokenRows.length; i += SEND_BATCH_SIZE) {
+    const batch = tokenRows.slice(i, i + SEND_BATCH_SIZE);
+    const result = await sendToTokens(batch, {
+      title: job.title,
+      body: job.body,
+      data: payloadData,
+    });
+
+    job.sent += result.sent;
+    job.failed += result.failed;
+    job.processedTokens += batch.length;
+    if (result.errors?.length && job.errors.length < MAX_STORED_ERRORS) {
+      job.errors.push(...result.errors.slice(0, MAX_STORED_ERRORS - job.errors.length));
+    }
+
+    const deliveredUsers = new Set(
+      (result.deliveredTokens || []).map((token) => userByToken.get(token)).filter(Boolean)
+    );
+    if (deliveredUsers.size) {
+      try {
+        await recordBroadcastLogs(job, [...deliveredUsers]);
+      } catch (err) {
+        console.warn('[push] failed to record broadcast inbox rows:', err.message);
+      }
+    }
+  }
 }
 
 async function sendAdminPush({ title, body, data = {}, audience = 'all', userId }) {
@@ -106,22 +204,8 @@ async function sendAdminPush({ title, body, data = {}, audience = 'all', userId 
     throw err;
   }
 
-  const userIds = await resolveTargetUserIds({ audience, userId });
-  if (!userIds.length) {
-    return {
-      sent: 0,
-      failed: 0,
-      recipientCount: 0,
-      tokenCount: 0,
-      fcmConfigured: true,
-      errors: [],
-    };
-  }
-
-  const tokenRows = await DeviceToken.findAll({
-    where: { userId: { [Op.in]: userIds } },
-    attributes: ['userId', 'token', 'platform'],
-  });
+  const tokenRows = await findAudienceTokens({ audience, userId });
+  const recipientCount = new Set(tokenRows.map((row) => row.userId)).size;
 
   const payloadData = {
     type: 'admin_broadcast',
@@ -130,54 +214,53 @@ async function sendAdminPush({ title, body, data = {}, audience = 'all', userId 
     ),
   };
 
-  const broadcastKey = Date.now().toString(36);
-  const tokensByUser = new Map();
-  for (const row of tokenRows) {
-    const list = tokensByUser.get(row.userId) || [];
-    list.push(row);
-    tokensByUser.set(row.userId, list);
+  pruneJobs();
+
+  const job = {
+    id: crypto.randomUUID(),
+    key: Date.now().toString(36),
+    status: tokenRows.length ? 'running' : 'done',
+    audience: userId ? 'user' : audience,
+    title: trimmedTitle,
+    body: trimmedBody,
+    sent: 0,
+    failed: 0,
+    processedTokens: 0,
+    recipientCount,
+    tokenCount: tokenRows.length,
+    errors: [],
+    error: null,
+    startedAt: Date.now(),
+    finishedAt: tokenRows.length ? null : Date.now(),
+  };
+  jobs.set(job.id, job);
+
+  if (!tokenRows.length) {
+    return serializeJob(job);
   }
 
-  let sent = 0;
-  let failed = 0;
-  const errors = [];
-
-  for (const userId of userIds) {
-    const userTokens = tokensByUser.get(userId) || [];
-    if (!userTokens.length) continue;
-
-    const result = await sendToTokens(userTokens, {
-      title: trimmedTitle,
-      body: trimmedBody,
-      data: payloadData,
+  const run = runBroadcast(job, tokenRows, payloadData)
+    .then(() => {
+      job.status = 'done';
+    })
+    .catch((err) => {
+      job.status = 'failed';
+      job.error = err.message || String(err);
+      console.error('[push] broadcast failed:', err);
+    })
+    .finally(() => {
+      job.finishedAt = Date.now();
     });
 
-    sent += result.sent;
-    failed += result.failed;
-    if (result.errors?.length) errors.push(...result.errors);
+  // Give small sends a chance to finish inline so the UI gets the final
+  // result in one round trip; otherwise return the job for polling.
+  await Promise.race([run, new Promise((resolve) => setTimeout(resolve, INLINE_WAIT_MS))]);
 
-    if (result.sent > 0) {
-      await recordUserNotification({
-        userId,
-        reminderKey: `admin_${broadcastKey}_${userId}`,
-        title: trimmedTitle,
-        body: trimmedBody,
-        type: 'admin_broadcast',
-      });
-    }
-  }
-
-  return {
-    sent,
-    failed,
-    errors,
-    recipientCount: userIds.length,
-    tokenCount: tokenRows.length,
-    fcmConfigured: true,
-  };
+  return serializeJob(job);
 }
 
 module.exports = {
   getPushStats,
+  getPushJob,
   sendAdminPush,
 };

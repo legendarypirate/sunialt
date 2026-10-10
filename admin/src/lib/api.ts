@@ -264,6 +264,9 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+
+  getNotificationJob: (jobId: string) =>
+    request<SendPushNotificationResult>(`/notifications/jobs/${encodeURIComponent(jobId)}`),
 };
 
 export interface Admin {
@@ -499,13 +502,19 @@ export interface SendPushNotificationPayload {
   data?: Record<string, string>;
 }
 
+export type PushJobStatus = 'running' | 'done' | 'failed';
+
 export interface SendPushNotificationResult {
+  jobId: string;
+  status: PushJobStatus;
   sent: number;
   failed: number;
+  processedTokens: number;
   recipientCount: number;
   tokenCount: number;
   fcmConfigured: boolean;
   message?: string;
+  error?: string | null;
   errors?: Array<{ platform: string; tokenSuffix: string; code: string; message: string }>;
 }
 

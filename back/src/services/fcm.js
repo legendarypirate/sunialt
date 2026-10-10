@@ -3,6 +3,11 @@ const path = require('path');
 
 const projectRoot = path.resolve(__dirname, '..', '..');
 const APNS_TOPIC = process.env.FCM_APNS_TOPIC || 'com.gegee.delivery';
+const FCM_MULTICAST_LIMIT = 500;
+const STALE_TOKEN_CODES = new Set([
+  'messaging/registration-token-not-registered',
+  'messaging/invalid-registration-token',
+]);
 
 let admin = null;
 let messaging = null;
@@ -167,26 +172,50 @@ async function sendToTokens(tokenEntries, { title, body, data = {} }) {
   let sent = 0;
   let failed = 0;
   const errors = [];
+  const deliveredTokens = [];
+  const staleTokens = [];
 
-  for (const entry of uniqueEntries) {
+  // FCM allows up to 500 tokens per multicast call; sendEach fires the
+  // individual requests concurrently instead of one-by-one.
+  for (let i = 0; i < uniqueEntries.length; i += FCM_MULTICAST_LIMIT) {
+    const chunk = uniqueEntries.slice(i, i + FCM_MULTICAST_LIMIT);
+    let batch;
     try {
-      await fcm.send({ token: entry.token, ...payload });
-      sent += 1;
+      batch = await fcm.sendEachForMulticast({
+        tokens: chunk.map((entry) => entry.token),
+        ...payload,
+      });
     } catch (err) {
+      failed += chunk.length;
+      for (const entry of chunk) {
+        errors.push({
+          platform: entry.platform,
+          tokenSuffix: entry.token.slice(-8),
+          code: err.code || 'send-failed',
+          message: err.message || String(err),
+        });
+      }
+      console.warn('[FCM] multicast failed:', err.code || err.message);
+      continue;
+    }
+
+    batch.responses.forEach((response, index) => {
+      const entry = chunk[index];
+      if (response.success) {
+        sent += 1;
+        deliveredTokens.push(entry.token);
+        return;
+      }
       failed += 1;
+      const err = response.error || {};
       errors.push({
         platform: entry.platform,
         tokenSuffix: entry.token.slice(-8),
         code: err.code || 'send-failed',
         message: err.message || String(err),
       });
-      if (
-        err.code === 'messaging/registration-token-not-registered' ||
-        err.code === 'messaging/invalid-registration-token'
-      ) {
-        // eslint-disable-next-line global-require
-        const { DeviceToken } = require('../models');
-        await DeviceToken.destroy({ where: { token: entry.token } }).catch(() => {});
+      if (STALE_TOKEN_CODES.has(err.code)) {
+        staleTokens.push(entry.token);
       }
       console.warn(
         '[FCM] send failed:',
@@ -194,10 +223,16 @@ async function sendToTokens(tokenEntries, { title, body, data = {} }) {
         `...${entry.token.slice(-8)}`,
         err.code || err.message
       );
-    }
+    });
   }
 
-  return { sent, failed, errors };
+  if (staleTokens.length) {
+    // eslint-disable-next-line global-require
+    const { DeviceToken } = require('../models');
+    await DeviceToken.destroy({ where: { token: staleTokens } }).catch(() => {});
+  }
+
+  return { sent, failed, errors, deliveredTokens };
 }
 
 module.exports = {

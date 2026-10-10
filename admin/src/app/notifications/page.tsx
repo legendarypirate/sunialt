@@ -30,6 +30,8 @@ import {
 } from '@/components/ui/table';
 import { mn } from '@/lib/mn';
 
+const POLL_INTERVAL_MS = 2000;
+
 const audienceOptions: { value: PushNotificationAudience; label: string }[] = [
   { value: 'all', label: 'Бүх хэрэглэгч' },
   { value: 'free', label: 'Зөвхөн Free' },
@@ -99,15 +101,27 @@ export default function NotificationsPage() {
     setResult(null);
 
     try {
-      const data = await api.sendNotification({
+      let data = await api.sendNotification({
         title: trimmedTitle,
         body: trimmedBody,
         audience,
         data: { type: 'admin_broadcast' },
       });
       setResult(data);
-      setSuccessMessage(data.message || `${data.sent} төхөөрөмжид илгээлээ`);
-      setBody('');
+
+      // Large audiences keep sending on the server; poll until finished.
+      while (data.status === 'running') {
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        data = await api.getNotificationJob(data.jobId);
+        setResult(data);
+      }
+
+      if (data.status === 'failed') {
+        setError(data.error || data.message || 'Илгээхэд алдаа гарлаа');
+      } else {
+        setSuccessMessage(data.message || `${data.sent} төхөөрөмжид илгээлээ`);
+        setBody('');
+      }
       await loadStats();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Илгээхэд алдаа гарлаа');
@@ -115,6 +129,11 @@ export default function NotificationsPage() {
       setSending(false);
     }
   }
+
+  const progressText =
+    sending && result?.status === 'running'
+      ? `Илгээж байна... ${result.processedTokens} / ${result.tokenCount} төхөөрөмж`
+      : null;
 
   return (
     <AdminShell title={mn.notifications}>
@@ -204,8 +223,9 @@ export default function NotificationsPage() {
               <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4} />
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
+            {progressText && <p className="text-sm text-muted-foreground">{progressText}</p>}
             {successMessage && <p className="text-sm text-green-600">{successMessage}</p>}
-            {result && result.failed > 0 && (
+            {result && result.status !== 'running' && result.failed > 0 && (
               <p className="text-sm text-amber-600">
                 {result.sent} амжилттай, {result.failed} алдаатай
               </p>
